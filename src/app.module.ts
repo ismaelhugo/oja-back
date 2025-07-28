@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { DeputadoModule } from './deputado/deputado.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-
+import { ConfigModule } from '@nestjs/config';
 @Module({
     imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
@@ -13,6 +15,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       database: process.env.DB_NAME,
       autoLoadEntities: true,
       synchronize: true,
+      logging: true, // Enable logging for debugging
     }),
     DeputadoModule,
   ],
