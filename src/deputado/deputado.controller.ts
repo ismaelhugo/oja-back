@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Delete, Param } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Delete, Param, Query } from '@nestjs/common';
 import { DeputadoService } from './deputado.service';
 import { Deputado } from './deputado.entity';
 
@@ -7,8 +7,15 @@ export class DeputadoController {
     constructor(private readonly deputadoService: DeputadoService) {}
 
     @Get('list')
-    async listDeputados() {
-        return this.deputadoService.findAll();
+    async listDeputados(
+        @Query('page') page?: number,
+        @Query('limit') limit?: number,
+        @Query('nome') nome?: string,
+        @Query('legislatura') legislatura?: number,
+        @Query('partido') partido?: string,
+        @Query('estado') estado?: string
+    ) {
+        return this.deputadoService.findAllPaginated(page, limit, { nome, legislatura, partido, estado });
     }
 
     @Post('create')

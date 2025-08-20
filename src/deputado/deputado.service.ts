@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, Like } from 'typeorm';
 import { Deputado } from './deputado.entity';
 import { DeputadoImportService } from './deputado-import.service';
 import { Logger } from '@nestjs/common';
@@ -20,11 +20,48 @@ export class DeputadoService {
   }
 
   async findAll(): Promise<Deputado[]> {
-    return this.deputadoRepository.find();
+    return this.deputadoRepository.find({ where: { siglaPartido: Not('ABC') } });
+  }
+
+  async findAllPaginated(
+    page?: number, 
+    limit?: number,
+    filters?: { nome?: string; legislatura?: number; partido?: string; estado?: string }
+  ): Promise<{ data: Deputado[]; total: number; page?: number; limit?: number; totalAll: number }> {
+    // Monta condições de filtro
+    const where: any = { siglaPartido: Not('ABC') };
+    
+    if (filters?.nome) {
+      where.nome = Like(`%${filters.nome}%`);
+    }
+    if (filters?.legislatura) {
+      where.idLegislatura = filters.legislatura;
+    }
+    if (filters?.partido) {
+      where.siglaPartido = filters.partido;
+    }
+    if (filters?.estado) {
+      where.siglaUf = Like(`%${filters.estado}%`);
+    }
+
+    const totalAll = await this.deputadoRepository.count({ where });
+    if (limit !== undefined && Number(limit) <= 0) {
+      const [data, total] = await this.deputadoRepository.findAndCount({ where, order: { nome: 'ASC' } });
+      return { data, total, totalAll };
+    }
+    const pageNum = page ?? 1;
+    const limitNum = limit ?? 20;
+    const [data, total] = await this.deputadoRepository.findAndCount({
+      where,
+      skip: (pageNum - 1) * limitNum,
+      take: limitNum,
+      order: { nome: 'ASC' },
+    });
+    return { data, total, page: pageNum, limit: limitNum, totalAll };
   }
 
   async findOne(id: number): Promise<Deputado | null> {
-    return this.deputadoRepository.findOneBy({ id });
+    return this.deputadoRepository.findOneBy({ id, siglaPartido: Not('ABC') });
   }
 
   async update(id: number, updateData: Partial<Deputado>): Promise<Deputado | null> {
