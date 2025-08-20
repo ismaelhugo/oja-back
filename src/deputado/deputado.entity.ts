@@ -30,6 +30,6 @@ export class Deputado {
   @Column()
   urlFoto: string;
 
-  @Column()
+  @Column({ nullable: true })
   email: string;
 }

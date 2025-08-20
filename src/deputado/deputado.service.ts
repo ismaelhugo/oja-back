@@ -3,9 +3,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Deputado } from './deputado.entity';
 import { DeputadoImportService } from './deputado-import.service';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class DeputadoService {
+  private readonly logger = new Logger(DeputadoService.name);
+  
   constructor(
     @InjectRepository(Deputado)
     private readonly deputadoRepository: Repository<Deputado>,
@@ -35,6 +38,35 @@ export class DeputadoService {
 
   async importarDeputadosPorLegislaturaESalvar(idLegislatura: number): Promise<Deputado[]> {
     const deputados = await this.deputadoImportService.importarDeputadosPorLegislatura(idLegislatura);
-    return this.deputadoRepository.save(deputados);
+    return this.salvarDeputadosComUpsert(deputados);
+  }
+
+  async importarTodosDeputadosESalvar(): Promise<Deputado[]> {
+    const deputados = await this.deputadoImportService.importarTodosDeputados();
+    this.logger.log(`Salvando ${deputados.length} deputados no banco de dados...`);
+    return this.salvarDeputadosComUpsert(deputados);
+  }
+
+  async importarDeputadosAtuaisESalvar(): Promise<Deputado[]> {
+    const deputados = await this.deputadoImportService.importarDeputadosAtuais();
+    this.logger.log(`Salvando ${deputados.length} deputados atuais no banco de dados...`);
+    return this.salvarDeputadosComUpsert(deputados);
+  }
+
+  private async salvarDeputadosComUpsert(deputados: any[]): Promise<Deputado[]> {
+    const deputadosSalvos: Deputado[] = [];
+    
+    for (const deputado of deputados) {
+      try {
+        // Usa upsert: insere se não existir, atualiza se já existir
+        await this.deputadoRepository.upsert(deputado, ['id']);
+        deputadosSalvos.push(deputado);
+      } catch (error) {
+        this.logger.warn(`Erro ao salvar deputado ${deputado.nome} (ID: ${deputado.id}):`, error.message);
+      }
+    }
+    
+    this.logger.log(`${deputadosSalvos.length} de ${deputados.length} deputados processados com sucesso`);
+    return deputadosSalvos;
   }
 }
