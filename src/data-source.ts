@@ -4,12 +4,14 @@ import 'dotenv/config';
 
 export const AppDataSource = new DataSource({
     type: 'postgres',
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT ?? '5432', 10),
-    username: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    database: process.env.DB_NAME,
+    url: process.env.DATABASE_URL,
     entities: [Deputado],
-    migrations: ['src/migrations/*.ts'],
-    synchronize: true,
+    migrations: ['src/database/migrations/*.ts'],
+    synchronize: false, // Desabilitar em produção, usar migrations
+    logging: false,
+    ssl: {
+        rejectUnauthorized: false, // Necessário para Supabase
+    },
+    migrationsRun: false, // Para controle manual das migrations
+    dropSchema: false,
 });

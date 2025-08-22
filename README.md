@@ -57,6 +57,18 @@ $ pnpm run test:e2e
 $ pnpm run test:cov
 ```
 
+## Database Setup
+
+```bash
+# Run migrations and seeds (initial setup)
+$ pnpm run db:setup
+
+# Import deputies data
+$ pnpm run import:deputados atuais        # Import current deputies (legislature 57)
+$ pnpm run import:deputados todos         # Import ALL deputies
+$ pnpm run import:deputados legislatura 56  # Import deputies from specific legislature
+```
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
