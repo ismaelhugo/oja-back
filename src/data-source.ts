@@ -6,9 +6,11 @@ export const AppDataSource = new DataSource({
     type: 'postgres',
     url: process.env.DATABASE_URL,
     entities: [Deputado],
-    migrations: ['src/database/migrations/*.ts'],
+    migrations: process.env.NODE_ENV === 'production' 
+        ? ['dist/database/migrations/*.js'] 
+        : ['src/database/migrations/*.ts'],
     synchronize: false, // Desabilitar em produção, usar migrations
-    logging: false,
+    logging: process.env.NODE_ENV === 'development',
     ssl: {
         rejectUnauthorized: false, // Necessário para Supabase
     },
