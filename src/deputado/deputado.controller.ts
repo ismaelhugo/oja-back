@@ -6,11 +6,6 @@ import { Deputado } from './deputado.entity';
 export class DeputadoController {
     constructor(private readonly deputadoService: DeputadoService) {}
 
-    @Get('health')
-    health() {
-        return { status: 'ok', message: 'API OJA Backend is running' };
-    }
-
     @Get('list')
     async listDeputados(
         @Query('page') page?: number,

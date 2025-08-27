@@ -69,6 +69,18 @@ $ pnpm run import:deputados todos         # Import ALL deputies
 $ pnpm run import:deputados legislatura 56  # Import deputies from specific legislature
 ```
 
+## Local Development
+
+```bash
+# Start development server
+$ pnpm run start:dev
+
+# The API will be available at http://localhost:3333
+# Main endpoints:
+# GET /deputado/list - List all deputies with pagination and filters
+# GET /deputado/:id - Get specific deputy
+```
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
