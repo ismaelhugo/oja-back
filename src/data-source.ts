@@ -23,5 +23,6 @@ export const AppDataSource = new DataSource({
         connectionTimeoutMillis: 30000,
         idleTimeoutMillis: 30000,
         max: 10, // máximo de conexões no pool
+        family: 4, // força IPv4
     },
 });
