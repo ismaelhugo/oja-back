@@ -13,9 +13,15 @@ export const AppDataSource = new DataSource({
     ],
     synchronize: false, // Desabilitar em produção, usar migrations
     logging: process.env.NODE_ENV !== 'production',
-    ssl: process.env.NODE_ENV === 'production' ? {
-        rejectUnauthorized: false, // Necessário para serviços cloud como Render
-    } : false,
+    ssl: {
+        rejectUnauthorized: false, // Necessário para Supabase
+    },
     migrationsRun: false, // Para controle manual das migrations
     dropSchema: false,
+    extra: {
+        // Configurações específicas para Supabase
+        connectionTimeoutMillis: 30000,
+        idleTimeoutMillis: 30000,
+        max: 10, // máximo de conexões no pool
+    },
 });
