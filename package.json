@@ -30,7 +30,9 @@
     "seed:drop": "npx ts-node src/database/seed.cli.ts drop",
     "seed:refresh": "npx ts-node src/database/seed.cli.ts refresh",
     "db:setup": "npm run migration:run && npm run seed:run",
-    "start:prod:full": "npm run migration:run:prod && npm run start:prod"
+    "start:prod:full": "npm run migration:run:prod && npm run start:prod",
+    "railway:build": "npm install && npm run build",
+    "railway:start": "npm run migration:run:prod && npm run start:prod"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -39,6 +41,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/typeorm": "^11.0.0",
+    "dotenv": "^16.4.5",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",

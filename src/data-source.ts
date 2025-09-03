@@ -13,16 +13,15 @@ export const AppDataSource = new DataSource({
     ],
     synchronize: false, // Desabilitar em produção, usar migrations
     logging: process.env.NODE_ENV !== 'production',
-    ssl: {
-        rejectUnauthorized: false, // Necessário para Supabase
-    },
+    ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: false, // Necessário para Railway
+    } : false,
     migrationsRun: false, // Para controle manual das migrations
     dropSchema: false,
     extra: {
-        // Configurações específicas para Supabase
-        connectionTimeoutMillis: 30000,
-        idleTimeoutMillis: 30000,
-        max: 10, // máximo de conexões no pool
-        family: 4, // força IPv4
+        // Configurações otimizadas para Railway
+        connectionTimeoutMillis: 20000,
+        idleTimeoutMillis: 20000,
+        max: 5, // máximo de conexões no pool (Railway tem limite menor)
     },
 });
