@@ -3,17 +3,17 @@ import { Deputado } from '../../deputado/deputado.entity';
 import { DeputadoImportService } from '../../deputado/deputado-import.service';
 import { HttpService } from '@nestjs/axios';
 
-export class DeputadoSeed {
+export class DeputadoSeedForce {
     async run(dataSource: DataSource): Promise<void> {
-        console.log('🏛️  Importando deputados...');
+        console.log('🏛️  Forçando reimportação de deputados...');
         
         const deputadoRepository = dataSource.getRepository(Deputado);
         
-        // Verificar se já existem deputados
+        // Limpar dados existentes
         const count = await deputadoRepository.count();
         if (count > 0) {
-            console.log(`⚠️  Já existem ${count} deputados na base. Pulando importação.`);
-            return;
+            console.log(`🗑️  Removendo ${count} deputados existentes...`);
+            await deputadoRepository.clear();
         }
         
         try {
@@ -21,7 +21,7 @@ export class DeputadoSeed {
             const httpService = new HttpService();
             const importService = new DeputadoImportService(httpService);
             
-            console.log('📥 Iniciando importação de deputados da legislatura atual...');
+            console.log('📥 Iniciando importação FORÇADA de deputados da legislatura atual...');
             
             // Importar deputados atuais (legislatura 57) - agora com paginação corrigida
             const deputados = await importService.importarDeputadosAtuais();

@@ -19,9 +19,47 @@ export class DeputadoImportService {
   constructor(private readonly httpService: HttpService) {}
 
   async importarDeputadosPorLegislatura(idLegislatura: number): Promise<any[]> {
-    const url = `https://dadosabertos.camara.leg.br/api/v2/deputados?idLegislatura=${idLegislatura}&ordem=ASC&ordenarPor=nome`;
-    const response: any = await firstValueFrom(this.httpService.get(url));
-    return response.data.dados;
+    let todosDeputados: any[] = [];
+    let pagina = 1;
+    const itemsPorPagina = 100; // máximo permitido pela API
+    let temMaisPaginas = true;
+
+    this.logger.log(`Iniciando importação de deputados da legislatura ${idLegislatura}...`);
+
+    while (temMaisPaginas) {
+      try {
+        const url = `https://dadosabertos.camara.leg.br/api/v2/deputados?idLegislatura=${idLegislatura}&pagina=${pagina}&itens=${itemsPorPagina}&ordem=ASC&ordenarPor=nome`;
+        this.logger.log(`Buscando página ${pagina} da legislatura ${idLegislatura}...`);
+        
+        const response: any = await firstValueFrom(this.httpService.get(url));
+        const data: DeputadoApiResponse = response.data;
+        
+        if (data.dados && data.dados.length > 0) {
+          todosDeputados = todosDeputados.concat(data.dados);
+          this.logger.log(`Página ${pagina}: ${data.dados.length} deputados encontrados`);
+          
+          // Verifica se existe próxima página nos links
+          const temProximaPagina = data.links?.some(link => typeof link === 'object' && 'next' in link && link.next);
+          
+          if (!temProximaPagina || data.dados.length < itemsPorPagina) {
+            // Se não há link "next" ou retornou menos itens que o máximo, é a última página
+            temMaisPaginas = false;
+          } else {
+            pagina++;
+            // Delay entre requisições para não sobrecarregar a API
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        } else {
+          temMaisPaginas = false;
+        }
+      } catch (error) {
+        this.logger.error(`Erro ao buscar página ${pagina} da legislatura ${idLegislatura}:`, error);
+        temMaisPaginas = false;
+      }
+    }
+
+    this.logger.log(`Importação da legislatura ${idLegislatura} concluída: ${todosDeputados.length} deputados encontrados`);
+    return todosDeputados;
   }
 
   async importarTodosDeputados(): Promise<any[]> {
@@ -44,13 +82,17 @@ export class DeputadoImportService {
           todosDeputados = todosDeputados.concat(data.dados);
           this.logger.log(`Página ${pagina}: ${data.dados.length} deputados encontrados`);
           
-          // Verifica se existe próxima página
-          const linkNext = data.links?.find(link => link.next);
-          temMaisPaginas = !!linkNext;
-          pagina++;
+          // Verifica se existe próxima página de forma mais robusta
+          const temProximaPagina = data.links?.some(link => typeof link === 'object' && 'next' in link && link.next);
           
-          // Delay entre requisições para não sobrecarregar a API
-          await new Promise(resolve => setTimeout(resolve, 100));
+          if (!temProximaPagina || data.dados.length < itemsPorPagina) {
+            // Se não há link "next" ou retornou menos itens que o máximo, é a última página
+            temMaisPaginas = false;
+          } else {
+            pagina++;
+            // Delay entre requisições para não sobrecarregar a API
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
         } else {
           temMaisPaginas = false;
         }
@@ -67,5 +109,11 @@ export class DeputadoImportService {
   async importarDeputadosAtuais(): Promise<any[]> {
     // Busca deputados da legislatura atual (57)
     return this.importarDeputadosPorLegislatura(57);
+  }
+
+  async importarDeputadosTodasLegislaturas(): Promise<any[]> {
+    // Importa deputados de todas as legislaturas (útil para dados históricos)
+    this.logger.log('Iniciando importação de deputados de todas as legislaturas...');
+    return this.importarTodosDeputados();
   }
 }
