@@ -27,13 +27,17 @@
     "migration:revert": "npm run typeorm -- migration:revert -d src/data-source.ts",
     "migration:show": "npm run typeorm -- migration:show -d src/data-source.ts",
     "seed:run": "npx ts-node src/database/seed.cli.ts run",
+    "seed:force": "npx ts-node src/database/seed.cli.ts force",
     "seed:drop": "npx ts-node src/database/seed.cli.ts drop",
     "seed:refresh": "npx ts-node src/database/seed.cli.ts refresh",
     "db:setup": "npm run migration:run && npm run seed:run",
     "start:prod:full": "npm run migration:run:prod && npm run start:prod",
     "railway:build": "npm install && npm run build",
     "railway:start": "npm run migration:run:prod && npm run seed:run && npm run start:prod",
-    "railway:start:no-seed": "npm run migration:run:prod && npm run start:prod"
+    "railway:start:no-seed": "npm run migration:run:prod && npm run start:prod",
+    "railway:seed": "npx ts-node src/database/seed.cli.ts run",
+    "railway:seed:force": "npx ts-node src/database/seed.cli.ts refresh",
+    "railway:import:deputados": "node dist/deputado/importar-deputados.cli.js atuais"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",

@@ -90,6 +90,16 @@ export class DeputadoService {
     return this.salvarDeputadosComUpsert(deputados);
   }
 
+  async count(): Promise<number> {
+    return this.deputadoRepository.count();
+  }
+
+  async clearAll(): Promise<void> {
+    this.logger.log('Removendo todos os deputados...');
+    await this.deputadoRepository.clear();
+    this.logger.log('Todos os deputados foram removidos');
+  }
+
   private async salvarDeputadosComUpsert(deputados: any[]): Promise<Deputado[]> {
     const deputadosSalvos: Deputado[] = [];
     

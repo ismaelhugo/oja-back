@@ -21,6 +21,26 @@ export class SeederService {
             console.log('✅ Seeds executados com sucesso!');
         } catch (error) {
             console.error('❌ Erro ao executar seeds:', error);
+            throw error;
+        } finally {
+            await this.dataSource.destroy();
+        }
+    }
+
+    async runForce(): Promise<void> {
+        try {
+            await this.dataSource.initialize();
+            console.log('🌱 Iniciando seeds FORÇADOS (limpando dados existentes)...');
+            
+            // Usar seed que força reimportação
+            const { DeputadoSeedForce } = await import('./seeds/deputado-force.seed');
+            const deputadoSeedForce = new DeputadoSeedForce();
+            await deputadoSeedForce.run(this.dataSource);
+            
+            console.log('✅ Seeds forçados executados com sucesso!');
+        } catch (error) {
+            console.error('❌ Erro ao executar seeds forçados:', error);
+            throw error;
         } finally {
             await this.dataSource.destroy();
         }

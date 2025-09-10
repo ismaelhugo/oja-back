@@ -10,6 +10,9 @@ async function main() {
         case 'run':
             await seeder.run();
             break;
+        case 'force':
+            await seeder.runForce();
+            break;
         case 'drop':
             await seeder.drop();
             break;
@@ -20,6 +23,7 @@ async function main() {
         default:
             console.log('Comandos disponíveis:');
             console.log('  npm run seed:run     # Executa seeds');
+            console.log('  npm run seed:force   # Força reimportação');
             console.log('  npm run seed:drop    # Limpa dados');
             console.log('  npm run seed:refresh # Limpa e executa seeds');
     }
