@@ -110,10 +110,4 @@ export class DeputadoImportService {
     // Busca deputados da legislatura atual (57)
     return this.importarDeputadosPorLegislatura(57);
   }
-
-  async importarDeputadosTodasLegislaturas(): Promise<any[]> {
-    // Importa deputados de todas as legislaturas (útil para dados históricos)
-    this.logger.log('Iniciando importação de deputados de todas as legislaturas...');
-    return this.importarTodosDeputados();
-  }
 }

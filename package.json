@@ -36,8 +36,7 @@
     "railway:start": "npm run migration:run:prod && npm run seed:run && npm run start:prod",
     "railway:start:no-seed": "npm run migration:run:prod && npm run start:prod",
     "railway:seed": "npx ts-node src/database/seed.cli.ts run",
-    "railway:seed:force": "npx ts-node src/database/seed.cli.ts refresh",
-    "railway:import:deputados": "node dist/deputado/importar-deputados.cli.js atuais"
+    "railway:seed:force": "npx ts-node src/database/seed.cli.ts refresh"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",

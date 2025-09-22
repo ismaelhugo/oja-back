@@ -4,16 +4,26 @@ import { DeputadoImportService } from '../../deputado/deputado-import.service';
 import { HttpService } from '@nestjs/axios';
 
 export class DeputadoSeed {
-    async run(dataSource: DataSource): Promise<void> {
+    async run(dataSource: DataSource, force: boolean = false): Promise<void> {
         console.log('🏛️  Importando deputados...');
         
         const deputadoRepository = dataSource.getRepository(Deputado);
         
-        // Verificar se já existem deputados
-        const count = await deputadoRepository.count();
-        if (count > 0) {
-            console.log(`⚠️  Já existem ${count} deputados na base. Pulando importação.`);
-            return;
+        // Verificar se já existem deputados (apenas se não for forçado)
+        if (!force) {
+            const count = await deputadoRepository.count();
+            if (count > 0) {
+                console.log(`⚠️  Já existem ${count} deputados na base. Pulando importação.`);
+                console.log('💡 Para forçar reimportação, use: npm run seed:refresh');
+                return;
+            }
+        } else {
+            // Se for forçado, limpar dados existentes
+            const count = await deputadoRepository.count();
+            if (count > 0) {
+                console.log(`🗑️  Removendo ${count} deputados existentes...`);
+                await deputadoRepository.clear();
+            }
         }
         
         try {

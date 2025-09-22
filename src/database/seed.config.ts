@@ -32,10 +32,10 @@ export class SeederService {
             await this.dataSource.initialize();
             console.log('🌱 Iniciando seeds FORÇADOS (limpando dados existentes)...');
             
-            // Usar seed que força reimportação
-            const { DeputadoSeedForce } = await import('./seeds/deputado-force.seed');
-            const deputadoSeedForce = new DeputadoSeedForce();
-            await deputadoSeedForce.run(this.dataSource);
+            // Usar o mesmo seed mas com parâmetro force=true
+            const { DeputadoSeed } = await import('./seeds/deputado.seed');
+            const deputadoSeed = new DeputadoSeed();
+            await deputadoSeed.run(this.dataSource, true);
             
             console.log('✅ Seeds forçados executados com sucesso!');
         } catch (error) {
