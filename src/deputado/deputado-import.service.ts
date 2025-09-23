@@ -4,12 +4,10 @@ import { firstValueFrom } from 'rxjs';
 
 interface DeputadoApiResponse {
   dados: any[];
-  links: {
-    first?: string;
-    last?: string;
-    next?: string;
-    prev?: string;
-  }[];
+  links: Array<{
+    rel: string;
+    href: string;
+  }>;
 }
 
 @Injectable()
@@ -36,25 +34,39 @@ export class DeputadoImportService {
         
         if (data.dados && data.dados.length > 0) {
           todosDeputados = todosDeputados.concat(data.dados);
-          this.logger.log(`Página ${pagina}: ${data.dados.length} deputados encontrados`);
+          this.logger.log(`Página ${pagina}: ${data.dados.length} deputados encontrados. Total até agora: ${todosDeputados.length}`);
           
-          // Verifica se existe próxima página nos links
-          const temProximaPagina = data.links?.some(link => typeof link === 'object' && 'next' in link && link.next);
-          
-          if (!temProximaPagina || data.dados.length < itemsPorPagina) {
-            // Se não há link "next" ou retornou menos itens que o máximo, é a última página
+          // Correção: verifica se retornou menos itens que o solicitado (indica última página)
+          if (data.dados.length < itemsPorPagina) {
+            this.logger.log(`Última página atingida - retornou ${data.dados.length} de ${itemsPorPagina} possíveis`);
             temMaisPaginas = false;
           } else {
-            pagina++;
-            // Delay entre requisições para não sobrecarregar a API
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // Verifica se existe próxima página nos links
+            const temProximaPagina = data.links?.some(link => link.rel === 'next');
+            
+            if (!temProximaPagina) {
+              this.logger.log('Não há link "next" - fim da paginação');
+              temMaisPaginas = false;
+            } else {
+              pagina++;
+              // Delay entre requisições para não sobrecarregar a API
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
           }
         } else {
           temMaisPaginas = false;
         }
       } catch (error) {
-        this.logger.error(`Erro ao buscar página ${pagina} da legislatura ${idLegislatura}:`, error);
-        temMaisPaginas = false;
+        this.logger.error(`Erro ao buscar página ${pagina} da legislatura ${idLegislatura}:`, error.message);
+        
+        // Se for erro 404, para a busca
+        if (error.response?.status === 404) {
+          this.logger.log('Página não encontrada - fim da paginação');
+          temMaisPaginas = false;
+        } else {
+          // Para outros erros, para a importação
+          temMaisPaginas = false;
+        }
       }
     }
 
@@ -80,25 +92,39 @@ export class DeputadoImportService {
         
         if (data.dados && data.dados.length > 0) {
           todosDeputados = todosDeputados.concat(data.dados);
-          this.logger.log(`Página ${pagina}: ${data.dados.length} deputados encontrados`);
+          this.logger.log(`Página ${pagina}: ${data.dados.length} deputados encontrados. Total até agora: ${todosDeputados.length}`);
           
-          // Verifica se existe próxima página de forma mais robusta
-          const temProximaPagina = data.links?.some(link => typeof link === 'object' && 'next' in link && link.next);
-          
-          if (!temProximaPagina || data.dados.length < itemsPorPagina) {
-            // Se não há link "next" ou retornou menos itens que o máximo, é a última página
+          // Correção: verifica se retornou menos itens que o solicitado (indica última página)
+          if (data.dados.length < itemsPorPagina) {
+            this.logger.log(`Última página atingida - retornou ${data.dados.length} de ${itemsPorPagina} possíveis`);
             temMaisPaginas = false;
           } else {
-            pagina++;
-            // Delay entre requisições para não sobrecarregar a API
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // Verifica se existe próxima página nos links
+            const temProximaPagina = data.links?.some(link => link.rel === 'next');
+            
+            if (!temProximaPagina) {
+              this.logger.log('Não há link "next" - fim da paginação');
+              temMaisPaginas = false;
+            } else {
+              pagina++;
+              // Delay entre requisições para não sobrecarregar a API
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
           }
         } else {
           temMaisPaginas = false;
         }
       } catch (error) {
-        this.logger.error(`Erro ao buscar página ${pagina}:`, error);
-        temMaisPaginas = false;
+        this.logger.error(`Erro ao buscar página ${pagina}:`, error.message);
+        
+        // Se for erro 404, para a busca
+        if (error.response?.status === 404) {
+          this.logger.log('Página não encontrada - fim da paginação');
+          temMaisPaginas = false;
+        } else {
+          // Para outros erros, para a importação
+          temMaisPaginas = false;
+        }
       }
     }
 
