@@ -41,7 +41,25 @@ export class DeputadoController {
 
     // Endpoints para importação e administração
     @Post('import/atuais')
-    async importarDeputadosAtuais() {
+    async importarDeputadosAtuaisPost() {
+        try {
+            const deputados = await this.deputadoService.importarDeputadosAtuaisESalvar();
+            return {
+                success: true,
+                message: `${deputados.length} deputados importados com sucesso`,
+                count: deputados.length
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: 'Erro ao importar deputados',
+                error: error.message
+            };
+        }
+    }
+
+    @Get('import/atuais')
+    async importarDeputadosAtuaisGet() {
         try {
             const deputados = await this.deputadoService.importarDeputadosAtuaisESalvar();
             return {
@@ -59,7 +77,25 @@ export class DeputadoController {
     }
 
     @Post('import/todos')
-    async importarTodosDeputados() {
+    async importarTodosDeputadosPost() {
+        try {
+            const deputados = await this.deputadoService.importarTodosDeputadosESalvar();
+            return {
+                success: true,
+                message: `${deputados.length} deputados importados com sucesso`,
+                count: deputados.length
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: 'Erro ao importar deputados',
+                error: error.message
+            };
+        }
+    }
+
+    @Get('import/todos')
+    async importarTodosDeputadosGet() {
         try {
             const deputados = await this.deputadoService.importarTodosDeputadosESalvar();
             return {
