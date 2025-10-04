@@ -1,11 +1,12 @@
 import { DataSource } from 'typeorm';
 import { Deputado } from './deputado/deputado.entity';
+import { Despesa } from './despesa/despesa.entity';
 import 'dotenv/config';
 
 export const AppDataSource = new DataSource({
     type: 'postgres',
     url: process.env.DATABASE_URL,
-    entities: [Deputado],
+    entities: [Deputado, Despesa],
     migrations: [
         process.env.NODE_ENV === 'production' 
             ? 'dist/database/migrations/*.js'

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DeputadoModule } from './deputado/deputado.module';
+import { DespesaModule } from './despesa/despesa.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 @Module({
@@ -17,6 +18,7 @@ import { ConfigModule } from '@nestjs/config';
       },
     }),
     DeputadoModule,
+    DespesaModule,
   ],
   controllers: [],
   providers: [],

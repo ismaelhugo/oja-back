@@ -19,6 +19,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "import:deputados": "npx ts-node src/deputado/importar-deputados.cli.ts",
+    "import:despesas": "npx ts-node src/despesa/importar-despesas.cli.ts",
     "typeorm": "npx typeorm-ts-node-commonjs",
     "migration:generate": "npm run typeorm -- migration:generate -d src/data-source.ts",
     "migration:create": "npm run typeorm -- migration:create",
