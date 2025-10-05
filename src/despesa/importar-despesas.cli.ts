@@ -44,9 +44,26 @@ async function main() {
   const deputadoService = app.get(DeputadoService);
   
   const comando = process.argv[2] || 'help';
-  const deputadoId = process.argv[3] ? Number(process.argv[3]) : undefined;
-  const ano = process.argv[4] ? Number(process.argv[4]) : undefined;
-  const mes = process.argv[5] ? Number(process.argv[5]) : undefined;
+  
+  // Comandos que NÃO usam deputadoId: os parâmetros começam em argv[3]
+  const comandosSemDeputadoId = ['todos-atuais', 'todos-atuais-paralelo', 'multiplos', 'contar', 'limpar', 'limpar-checkpoint', 'ver-checkpoint'];
+  const usaDeputadoId = !comandosSemDeputadoId.includes(comando);
+  
+  let deputadoId: number | undefined;
+  let ano: number | undefined;
+  let mes: number | undefined;
+  
+  if (usaDeputadoId) {
+    // Comandos como: deputado <deputadoId> [ano] [mes]
+    deputadoId = process.argv[3] ? Number(process.argv[3]) : undefined;
+    ano = process.argv[4] ? Number(process.argv[4]) : undefined;
+    mes = process.argv[5] ? Number(process.argv[5]) : undefined;
+  } else {
+    // Comandos como: todos-atuais [ano] [mes]
+    deputadoId = undefined;
+    ano = process.argv[3] ? Number(process.argv[3]) : undefined;
+    mes = process.argv[4] ? Number(process.argv[4]) : undefined;
+  }
   
   try {
     switch (comando) {
