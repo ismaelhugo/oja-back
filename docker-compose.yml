@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # =====================================
+  # PostgreSQL Database
+  # =====================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: oja-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ismael}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-oja_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - oja-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ismael} -d ${POSTGRES_DB:-oja_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =====================================
+  # Adminer - Interface Web PostgreSQL
+  # =====================================
+  adminer:
+    image: adminer:latest
+    container_name: oja-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - oja-network
+    environment:
+      ADMINER_DESIGN: pepa-linha
+
+volumes:
+  postgres_data:
+    name: oja_postgres_data
+
+networks:
+  oja-network:
+    name: oja-network
+    driver: bridge
