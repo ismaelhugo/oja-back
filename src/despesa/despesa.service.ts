@@ -159,6 +159,98 @@ export class DespesaService {
     return resultado;
   }
 
+  async importarDespesasParaleloComCheckpoint(
+    deputadosIds: number[],
+    ano?: number,
+    mes?: number,
+    batchSize: number = 10,
+    deputadosProcessados: number[] = []
+  ): Promise<{
+    sucesso: { deputadoId: number; count: number }[];
+    falhas: { deputadoId: number; erro: string }[];
+    totalDespesas: number;
+  }> {
+    const sucesso: { deputadoId: number; count: number }[] = [];
+    const falhas: { deputadoId: number; erro: string }[] = [];
+    
+    // Filtrar deputados já processados
+    const deputadosPendentes = deputadosIds.filter(id => !deputadosProcessados.includes(id));
+    
+    this.logger.log(`Total de deputados: ${deputadosIds.length}`);
+    this.logger.log(`Já processados: ${deputadosProcessados.length}`);
+    this.logger.log(`Pendentes: ${deputadosPendentes.length}`);
+    
+    // Dividir em lotes
+    const lotes: number[][] = [];
+    for (let i = 0; i < deputadosPendentes.length; i += batchSize) {
+      lotes.push(deputadosPendentes.slice(i, i + batchSize));
+    }
+    
+    // Processar cada lote
+    for (let i = 0; i < lotes.length; i++) {
+      const lote = lotes[i];
+      this.logger.log(`\n📦 Processando lote ${i + 1}/${lotes.length} (${lote.length} deputados)...`);
+      
+      // Processar deputados do lote em paralelo
+      const promises = lote.map(async (deputadoId) => {
+        try {
+          const despesas = await this.importarDespesasDeputadoESalvar(deputadoId, ano, mes);
+          return {
+            deputadoId,
+            count: despesas.length,
+            success: true,
+            erro: null
+          };
+        } catch (error) {
+          return {
+            deputadoId,
+            count: 0,
+            success: false,
+            erro: error.message || 'Erro desconhecido'
+          };
+        }
+      });
+      
+      const resultadosLote = await Promise.all(promises);
+      
+      // Separar sucessos e falhas
+      resultadosLote.forEach(resultado => {
+        if (resultado.success) {
+          sucesso.push({ deputadoId: resultado.deputadoId, count: resultado.count });
+        } else {
+          falhas.push({ deputadoId: resultado.deputadoId, erro: resultado.erro });
+        }
+      });
+      
+      // Log do progresso
+      const sucessosLote = resultadosLote.filter(r => r.success).length;
+      const despesasLote = resultadosLote.reduce((sum, r) => sum + r.count, 0);
+      this.logger.log(`✅ Lote ${i + 1} concluído: ${despesasLote} despesas (${sucessosLote}/${lote.length} sucessos)`);
+      
+      // Mostrar erros do lote
+      const errosLote = resultadosLote.filter(r => !r.success);
+      if (errosLote.length > 0) {
+        errosLote.forEach(erro => {
+          this.logger.warn(`  ❌ Deputado ${erro.deputadoId}: ${erro.erro}`);
+        });
+      }
+      
+      // Pausa entre lotes
+      if (i < lotes.length - 1) {
+        this.logger.log('⏸️  Pausa de 2 segundos...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    const totalDespesas = sucesso.reduce((sum, s) => sum + s.count, 0);
+    
+    return {
+      sucesso,
+      falhas,
+      totalDespesas
+    };
+  }
+
   // Métodos de estatísticas e análises
   async obterEstatisticasDeputado(deputadoId: number, ano?: number): Promise<any> {
     const where: any = { deputadoId };
@@ -256,44 +348,100 @@ export class DespesaService {
     this.logger.log(`Despesas do deputado ${deputadoId} foram removidas`);
   }
 
-  // Método privado para salvar com upsert
+  // Método privado para salvar com upsert OTIMIZADO
   private async salvarDespesasComUpsert(despesas: any[]): Promise<Despesa[]> {
+    if (despesas.length === 0) {
+      return [];
+    }
+
     const despesasSalvas: Despesa[] = [];
     
-    for (const despesa of despesas) {
-      try {
-        // Cria uma chave única baseada em dados identificadores
-        const despesaExistente = await this.despesaRepository.findOne({
-          where: {
-            deputadoId: despesa.deputadoId,
-            codDocumento: despesa.codDocumento,
-            numDocumento: despesa.numDocumento,
-            ano: despesa.ano,
-            mes: despesa.mes
-          }
-        });
+    try {
+      // SIMPLIFICADO: Buscar despesas existentes apenas por codDocumento e numDocumento
+      const deputadoId = despesas[0].deputadoId;
+      
+      // Extrair todos os codDocumento e numDocumento únicos
+      const codsDocumento = [...new Set(despesas.map(d => d.codDocumento))];
+      const numsDocumento = [...new Set(despesas.map(d => d.numDocumento))];
+      
+      // Buscar todas as despesas existentes deste deputado com esses documentos
+      const despesasExistentes = await this.despesaRepository
+        .createQueryBuilder('despesa')
+        .where('despesa.deputadoId = :deputadoId', { deputadoId })
+        .andWhere('despesa.codDocumento IN (:...codsDocumento)', { codsDocumento })
+        .andWhere('despesa.numDocumento IN (:...numsDocumento)', { numsDocumento })
+        .getMany();
 
-        let despesaSalva: Despesa;
-        if (despesaExistente) {
-          // Atualiza a despesa existente
-          await this.despesaRepository.update(despesaExistente.id_local, despesa);
-          const despesaAtualizada = await this.despesaRepository.findOne({ where: { id_local: despesaExistente.id_local } });
-          if (!despesaAtualizada) {
-            throw new Error(`Erro ao recuperar despesa atualizada com ID ${despesaExistente.id_local}`);
+      // Criar mapa usando APENAS codDocumento e numDocumento como chave
+      const mapaExistentes = new Map<string, Despesa>();
+      despesasExistentes.forEach(d => {
+        const chave = `${d.codDocumento}-${d.numDocumento}`;
+        mapaExistentes.set(chave, d);
+      });
+
+      // Separar despesas novas das existentes
+      const despesasNovas: any[] = [];
+      const despesasParaAtualizar: any[] = [];
+
+      for (const despesa of despesas) {
+        const chave = `${despesa.codDocumento}-${despesa.numDocumento}`;
+        const existente = mapaExistentes.get(chave);
+
+        if (existente) {
+          // Atualizar apenas se houver mudança nos valores
+          if (this.despesaMudou(existente, despesa)) {
+            despesasParaAtualizar.push({ id: existente.id_local, dados: despesa });
+          } else {
+            // Despesa já existe e está igual, apenas adicionar à lista de salvas
+            despesasSalvas.push(existente);
           }
-          despesaSalva = despesaAtualizada;
         } else {
-          // Insere nova despesa
-          despesaSalva = await this.despesaRepository.save(despesa);
+          despesasNovas.push(despesa);
         }
-
-        despesasSalvas.push(despesaSalva);
-      } catch (error) {
-        this.logger.warn(`Erro ao salvar despesa do deputado ${despesa.deputadoId}:`, error.message);
       }
+
+      // Inserir despesas novas em batch
+      if (despesasNovas.length > 0) {
+        this.logger.log(`💾 Inserindo ${despesasNovas.length} despesas novas...`);
+        const novasSalvas = await this.despesaRepository.save(despesasNovas);
+        despesasSalvas.push(...novasSalvas);
+      }
+
+      // Atualizar despesas modificadas
+      if (despesasParaAtualizar.length > 0) {
+        this.logger.log(`🔄 Atualizando ${despesasParaAtualizar.length} despesas modificadas...`);
+        for (const item of despesasParaAtualizar) {
+          await this.despesaRepository.update(item.id, item.dados);
+          const atualizada = await this.despesaRepository.findOne({ where: { id_local: item.id } });
+          if (atualizada) {
+            despesasSalvas.push(atualizada);
+          }
+        }
+      }
+
+      const ignoradas = despesas.length - despesasNovas.length - despesasParaAtualizar.length;
+      if (ignoradas > 0) {
+        this.logger.log(`⏭️  ${ignoradas} despesas já existentes (sem alterações)`);
+      }
+
+      this.logger.log(`✅ ${despesasSalvas.length} de ${despesas.length} despesas processadas (${despesasNovas.length} novas, ${despesasParaAtualizar.length} atualizadas, ${ignoradas} ignoradas)`);
+      
+    } catch (error) {
+      this.logger.error(`Erro ao salvar despesas em batch:`, error.message);
+      throw error;
     }
     
-    this.logger.log(`${despesasSalvas.length} de ${despesas.length} despesas processadas com sucesso`);
     return despesasSalvas;
+  }
+
+  // Método auxiliar para verificar se despesa mudou
+  private despesaMudou(existente: Despesa, nova: any): boolean {
+    return (
+      existente.valorDocumento !== nova.valorDocumento ||
+      existente.valorGlosa !== nova.valorGlosa ||
+      existente.valorLiquido !== nova.valorLiquido ||
+      existente.tipoDespesa !== nova.tipoDespesa ||
+      existente.nomeFornecedor !== nova.nomeFornecedor
+    );
   }
 }
