@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { ChatOllama } from '@langchain/ollama';
+import { OpenAI } from '@langchain/openai';
 import { DataSource } from 'typeorm';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
@@ -8,7 +8,7 @@ import { StringOutputParser } from '@langchain/core/output_parsers';
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private llm: ChatOllama;
+  private llm: OpenAI;
 
   constructor(
     @InjectDataSource()
@@ -16,19 +16,30 @@ export class AiService {
   ) {}
 
   async onModuleInit() {
-    // Inicializar o modelo Ollama (local e gratuito)
+    // Inicializar o modelo GPT-4 da OpenAI
     try {
-      this.llm = new ChatOllama({
-        baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-        model: process.env.OLLAMA_MODEL || 'llama3.2',
+      const apiKey = process.env.OPENAI_API_KEY;
+      const model = process.env.OPENAI_MODEL || 'gpt-4o';
+      
+      console.log('🔍 [DEBUG] Variáveis de ambiente:');
+      console.log('   OPENAI_API_KEY:', apiKey ? `${apiKey.substring(0, 20)}...` : 'NÃO DEFINIDA');
+      console.log('   OPENAI_MODEL:', model);
+
+      if (!apiKey) {
+        throw new Error('OPENAI_API_KEY não está definida no .env');
+      }
+
+      this.llm = new OpenAI({
+        openAIApiKey: apiKey,
+        modelName: model,
         temperature: 0,
       });
 
-      this.logger.log('Serviço de IA inicializado com Ollama (modelo local gratuito)');
-      this.logger.log('Conexão com banco de dados PostgreSQL estabelecida');
+      this.logger.log('✅ Serviço de IA inicializado com GPT-4o da OpenAI');
+      this.logger.log('✅ Conexão com banco de dados PostgreSQL estabelecida');
     } catch (error) {
-      this.logger.error('Erro ao inicializar Ollama:', error.message);
-      this.logger.warn('Instale o Ollama: https://ollama.ai');
+      this.logger.error('❌ Erro ao inicializar GPT-4o da OpenAI:', error.message);
+      this.logger.error('Stack:', error.stack);
     }
   }
 
@@ -85,7 +96,7 @@ EXEMPLOS DE QUERIES CORRETAS:
   async perguntarSobreGastos(pergunta: string): Promise<string> {
     try {
       if (!this.llm) {
-        throw new Error('Serviço de IA não inicializado. Instale o Ollama: https://ollama.ai');
+        throw new Error('Serviço de IA não inicializado. Verifique a configuração do GPT-4 da OpenAI.');
       }
 
       this.logger.log(`Processando pergunta: ${pergunta}`);
@@ -96,81 +107,35 @@ ${this.getSchemaContext()}
 
 Pergunta do usuário: {question}
 
-INSTRUÇÕES OBRIGATÓRIAS:
-1. Analise a pergunta e gere uma query SQL completa que responda TUDO que foi perguntado
-2. Use SEMPRE: "deputados" e "despesas" (PLURAL)
-3. Para buscar por nome: WHERE nome ILIKE '%nome%'
-4. Para somar gastos: SUM("valorLiquido")
-5. Para comparações: retorne dados de TODOS os deputados mencionados
-6. SEMPRE inclua "siglaPartido" e "siglaUf" quando relevante
-7. Use JOIN entre deputados e despesas quando necessário
-8. Retorne APENAS SQL puro, sem explicações, sem markdown
+INSTRUÇÕES OBRIGATÓRIAS - LEIA COM MUITA ATENÇÃO:
+1. TODOS os nomes de colunas com maiúsculas DEVEM estar entre aspas duplas
+2. Exemplos CORRETOS que você DEVE seguir:
+   - SELECT "siglaPartido", "siglaUf", nome FROM deputados
+   - WHERE "deputadoId" = 123
+   - SUM("valorLiquido") as total
+   - "tipoDespesa", "valorLiquido", "nomeFornecedor"
+3. Nomes em LOWERCASE não precisam de aspas:
+   - SELECT id, nome, ano FROM deputados
+4. Use SEMPRE "deputados" e "despesas" (PLURAL)
+5. Use aspas duplas em TODAS as colunas: "deputadoId", "siglaPartido", "siglaUf", "valorLiquido", "tipoDespesa", "nomeFornecedor", "cnpjCpfFornecedor", "valorGlosa", "valorDocumento"
+6. Retorne APENAS SQL puro, sem markdown, sem explicações
 
-EXEMPLOS DE QUERIES CORRETAS:
-
-1) "Quanto deputado X gastou?":
-SELECT d.nome, d."siglaPartido", COALESCE(SUM(de."valorLiquido"), 0) as total 
-FROM deputados d 
-LEFT JOIN despesas de ON d.id = de."deputadoId"
-WHERE d.nome ILIKE '%x%'
-GROUP BY d.nome, d."siglaPartido";
-
-2) "Quem gastou mais: A ou B? E os partidos?":
-SELECT d.nome, d."siglaPartido", d."siglaUf", COALESCE(SUM(de."valorLiquido"), 0) as total 
-FROM deputados d 
-LEFT JOIN despesas de ON d.id = de."deputadoId"
-WHERE d.nome ILIKE '%a%' OR d.nome ILIKE '%b%'
-GROUP BY d.nome, d."siglaPartido", d."siglaUf"
-ORDER BY total DESC;
-
-3) "Top 10 deputados que mais gastaram" ou "Quais deputados mais gastaram em 2025":
-SELECT d.nome, d."siglaPartido", d."siglaUf", SUM(de."valorLiquido") as total
-FROM deputados d
-JOIN despesas de ON d.id = de."deputadoId"
-WHERE de.ano = 2025
-GROUP BY d.nome, d."siglaPartido", d."siglaUf"
-ORDER BY total DESC
-LIMIT 10;
-
-4) "Deputados do PT que gastaram mais de 100 mil":
-SELECT d.nome, d."siglaUf", SUM(de."valorLiquido") as total
-FROM deputados d
-JOIN despesas de ON d.id = de."deputadoId"
-WHERE d."siglaPartido" = 'PT'
-GROUP BY d.nome, d."siglaUf"
-HAVING SUM(de."valorLiquido") > 100000
-ORDER BY total DESC;
-
-5) "Qual partido gastou mais?":
-SELECT d."siglaPartido", COUNT(DISTINCT d.id) as qtd_deputados, SUM(de."valorLiquido") as total
-FROM deputados d
-JOIN despesas de ON d.id = de."deputadoId"
-GROUP BY d."siglaPartido"
-ORDER BY total DESC
-LIMIT 10;
-
-ATENÇÃO: 
-- Se a pergunta menciona "maiores", "mais", "top X", SEMPRE use ORDER BY total DESC LIMIT X
-- Se não especificar número, use LIMIT 10 por padrão
-- SEMPRE filtre por ano quando mencionado (WHERE de.ano = XXXX)
-
-Agora gere APENAS a query SQL (sem texto, sem markdown):
+Agora gere APENAS a query SQL com aspas duplas nas colunas camelCase:
 `);
 
-      const sqlChain = sqlPrompt.pipe(this.llm).pipe(new StringOutputParser());
-      let sqlQuery = await sqlChain.invoke({ question: pergunta });
-      
+      const sqlQuery = await this.llm.call(await sqlPrompt.format({ question: pergunta }));
+
       // Limpar a query (remover markdown, espaços extras, etc)
-      sqlQuery = sqlQuery
+      const cleanedQuery = sqlQuery
         .replace(/```sql/g, '')
         .replace(/```/g, '')
         .trim();
 
-      this.logger.log(`[DEBUG] Query SQL gerada pelo LLM: ${sqlQuery}`);
+      this.logger.log(`[DEBUG] Query SQL gerada pelo LLM: ${cleanedQuery}`);
 
       // 2. Executar query
-      const resultado = await this.dataSource.query(sqlQuery);
-      
+      const resultado = await this.dataSource.query(cleanedQuery);
+
       this.logger.log(`[DEBUG] Resultado da query (${resultado.length} linhas):`);
       this.logger.log(`[DEBUG] Dados completos: ${JSON.stringify(resultado, null, 2)}`);
 
@@ -192,34 +157,27 @@ REGRAS CRÍTICAS - LEIA COM ATENÇÃO:
 FORMATO OBRIGATÓRIO:
 Para rankings: "Os deputados que mais gastaram foram: 1. [nome exato do JSON] ([siglaPartido]-[siglaUf]): R$ [total do JSON], 2. [próximo do JSON]..."
 
-EXEMPLO CORRETO (copiando do JSON):
-JSON: [{{"nome":"João","siglaPartido":"PT","siglaUf":"SP","total":"100000.50"}}]
-Resposta: "João (PT-SP) gastou R$ 100.000,50"
-
 Agora responda copiando EXATAMENTE os dados do JSON:
 `);
 
-      const answerChain = answerPrompt.pipe(this.llm).pipe(new StringOutputParser());
-      
-      const resposta = await answerChain.invoke({
+      const resposta = await this.llm.call(await answerPrompt.format({
         question: pergunta,
         result: JSON.stringify(resultado, null, 2),
-      });
+      }));
 
       this.logger.log('Pergunta processada com sucesso');
-      
-      // Limpar quebras de linha extras e formatar melhor
-      const respostaLimpa = resposta.replace(/\\n/g, ' ').replace(/\n\n+/g, ' ').trim();
-      
-      return respostaLimpa;
 
+      // Limpar quebras de linha extras e formatar melhor
+      const respostaLimpa = resposta.replace(/\n/g, ' ').replace(/\n\n+/g, ' ').trim();
+
+      return respostaLimpa;
     } catch (error) {
       this.logger.error('Erro ao processar pergunta:', error.message);
-      
+
       if (error.message.includes('syntax error')) {
         throw new Error('Desculpe, não consegui entender sua pergunta. Tente reformular.');
       }
-      
+
       throw new Error(`Erro ao processar sua pergunta: ${error.message}`);
     }
   }
@@ -242,17 +200,20 @@ ${this.getSchemaContext()}
 
 Pergunta do usuário: {question}
 
-INSTRUÇÕES OBRIGATÓRIAS:
-1. Analise a pergunta e gere SQL que responda TUDO
-2. Use: "deputados" e "despesas" (PLURAL)
-3. Para comparações: retorne dados de TODOS os mencionados
-4. SEMPRE inclua "siglaPartido" e "siglaUf" quando relevante
-5. Use agregações (SUM, COUNT, AVG) quando necessário
-6. Retorne APENAS SQL, sem texto
+INSTRUÇÕES OBRIGATÓRIAS - LEIA COM MUITA ATENÇÃO:
+1. TODOS os nomes de colunas com maiúsculas DEVEM estar entre aspas duplas
+2. Exemplos CORRETOS que você DEVE seguir:
+   - SELECT "siglaPartido", "siglaUf", nome FROM deputados
+   - WHERE "deputadoId" = 123
+   - SUM("valorLiquido") as total
+   - "tipoDespesa", "valorLiquido", "nomeFornecedor"
+3. Nomes em LOWERCASE não precisam de aspas:
+   - SELECT id, nome, ano FROM deputados
+4. Use SEMPRE "deputados" e "despesas" (PLURAL)
+5. Use aspas duplas em TODAS as colunas: "deputadoId", "siglaPartido", "siglaUf", "valorLiquido", "tipoDespesa", "nomeFornecedor", "cnpjCpfFornecedor", "valorGlosa", "valorDocumento"
+6. Retorne APENAS SQL puro, sem markdown, sem explicações
 
-EXEMPLOS: veja exemplos no método anterior
-
-Gere APENAS a query SQL:
+Agora gere APENAS a query SQL com aspas duplas nas colunas camelCase:
 `);
 
       const sqlChain = sqlPrompt.pipe(this.llm).pipe(new StringOutputParser());
