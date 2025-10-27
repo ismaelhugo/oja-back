@@ -154,9 +154,6 @@ REGRAS CRÍTICAS - LEIA COM ATENÇÃO:
 5. NÃO invente nomes, NÃO invente valores, NÃO invente partidos
 6. Copie LITERALMENTE: nome, siglaPartido, siglaUf, total
 
-FORMATO OBRIGATÓRIO:
-Para rankings: "Os deputados que mais gastaram foram: 1. [nome exato do JSON] ([siglaPartido]-[siglaUf]): R$ [total do JSON], 2. [próximo do JSON]..."
-
 Agora responda copiando EXATAMENTE os dados do JSON:
 `);
 
