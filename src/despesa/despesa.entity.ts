@@ -2,15 +2,15 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } 
 import { Deputado } from '../deputado/deputado.entity';
 
 @Entity('despesas')
-@Index(['deputadoId', 'ano', 'mes']) // Índice composto para melhor performance
+@Index(['deputadoId', 'ano', 'mes']) // Composite index for better performance
 @Index(['tipoDespesa'])
 @Index(['ano', 'mes'])
 export class Despesa {
   @PrimaryGeneratedColumn()
-  id_local: number; // ID gerado no banco
+  id_local: number; // Generated ID in database
 
   @Column()
-  deputadoId: number; // ID do deputado (referência para a API)
+  deputadoId: number; // Deputy ID (reference to API)
 
   @Column()
   ano: number;

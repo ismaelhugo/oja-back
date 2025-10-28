@@ -4,10 +4,10 @@ import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 @Entity('deputados')
 export class Deputado {
   @PrimaryGeneratedColumn()
-  id_local: number; // ID gerado no banco
+  id_local: number; // Generated ID in database
 
   @Column({ unique: true })
-  id: number; // ID oficial da API da câmara
+  id: number; // Official API ID from Chamber of Deputies
 
   @Column()
   uri: string;

@@ -3,7 +3,6 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { OpenAI } from '@langchain/openai';
 import { DataSource } from 'typeorm';
 import { PromptTemplate } from '@langchain/core/prompts';
-import { StringOutputParser } from '@langchain/core/output_parsers';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -21,17 +20,17 @@ export class AiService {
   ) {}
 
   async onModuleInit() {
-    // Inicializar o modelo GPT-4 da OpenAI
+    // Initialize OpenAI GPT-4 model
     try {
       const apiKey = process.env.OPENAI_API_KEY;
       const model = process.env.OPENAI_MODEL || 'gpt-4o';
       
-      console.log('🔍 [DEBUG] Variáveis de ambiente:');
-      console.log('   OPENAI_API_KEY:', apiKey ? `${apiKey.substring(0, 20)}...` : 'NÃO DEFINIDA');
+      console.log('🔍 [DEBUG] Environment variables:');
+      console.log('   OPENAI_API_KEY:', apiKey ? `${apiKey.substring(0, 20)}...` : 'NOT DEFINED');
       console.log('   OPENAI_MODEL:', model);
 
       if (!apiKey) {
-        throw new Error('OPENAI_API_KEY não está definida no .env');
+        throw new Error('OPENAI_API_KEY is not defined in .env');
       }
 
       this.llm = new OpenAI({
@@ -40,58 +39,58 @@ export class AiService {
         temperature: 0,
       });
 
-      this.logger.log('✅ Serviço de IA inicializado com GPT-4o da OpenAI');
-      this.logger.log('✅ Conexão com banco de dados PostgreSQL estabelecida');
+      this.logger.log('✅ AI service initialized with OpenAI GPT-4o');
+      this.logger.log('✅ PostgreSQL database connection established');
     } catch (error) {
-      this.logger.error('❌ Erro ao inicializar GPT-4o da OpenAI:', error.message);
+      this.logger.error('❌ Error initializing OpenAI GPT-4o:', error.message);
       this.logger.error('Stack:', error.stack);
     }
   }
 
   private getSchemaContext(): string {
     return `
-Você é um assistente especializado em analisar gastos de deputados brasileiros.
+You are an assistant specialized in analyzing expenses of Brazilian deputies.
 
-O banco de dados PostgreSQL possui as seguintes tabelas:
+The PostgreSQL database has the following tables:
 
-1. Tabela: deputados (ATENÇÃO: nome da tabela no PLURAL)
-   Colunas:
-   - id (integer): ID oficial da Câmara dos Deputados
-   - id_local (integer, PK): ID único no banco local
-   - nome (varchar): Nome completo do deputado
-   - siglaPartido (varchar): Sigla do partido (ex: PT, PSDB, PL, etc)
-   - siglaUf (varchar): Sigla do estado (ex: SP, RJ, MG, etc)
-   - urlFoto (varchar): URL da foto
-   - email (varchar): Email do deputado
+1. Table: deputados (ATTENTION: table name in PLURAL)
+   Columns:
+   - id (integer): Official ID from Chamber of Deputies
+   - id_local (integer, PK): Unique ID in local database
+   - nome (varchar): Deputy's full name
+   - siglaPartido (varchar): Party acronym (ex: PT, PSDB, PL, etc)
+   - siglaUf (varchar): State acronym (ex: SP, RJ, MG, etc)
+   - urlFoto (varchar): Photo URL
+   - email (varchar): Deputy's email
 
-2. Tabela: despesas (ATENÇÃO: nome da tabela no PLURAL)
-   Colunas:
-   - id_local (integer, PK): ID único da despesa
-   - deputadoId (integer): ID do deputado (corresponde ao 'id' da tabela deputados)
-   - ano (integer): Ano da despesa
-   - mes (integer): Mês da despesa (1-12)
-   - tipoDespesa (varchar): Tipo/categoria da despesa
-   - codDocumento (integer): Código do documento
-   - numDocumento (varchar): Número do documento
-   - valorDocumento (decimal): Valor original do documento
-   - valorGlosa (decimal): Valor de glosa (desconto)
-   - valorLiquido (decimal): Valor líquido pago (use este para cálculos)
-   - nomeFornecedor (varchar): Nome do fornecedor
-   - cnpjCpfFornecedor (varchar): CNPJ/CPF do fornecedor
-   - dataDocumento (varchar): Data do documento
+2. Table: despesas (ATTENTION: table name in PLURAL)
+   Columns:
+   - id_local (integer, PK): Unique expense ID
+   - deputadoId (integer): Deputy ID (matches 'id' from deputados table)
+   - ano (integer): Expense year
+   - mes (integer): Expense month (1-12)
+   - tipoDespesa (varchar): Expense type/category
+   - codDocumento (integer): Document code
+   - numDocumento (varchar): Document number
+   - valorDocumento (decimal): Original document value
+   - valorGlosa (decimal): Discount value
+   - valorLiquido (decimal): Net paid value (use this for calculations)
+   - nomeFornecedor (varchar): Supplier name
+   - cnpjCpfFornecedor (varchar): Supplier CNPJ/CPF
+   - dataDocumento (varchar): Document date
 
-Regras IMPORTANTES:
-- SEMPRE use "deputados" e "despesas" (PLURAL) nos comandos SQL
-- Use SEMPRE valorLiquido para calcular gastos (não valorDocumento)
-- Para juntar deputados e despesas, use: JOIN deputados ON despesas."deputadoId" = deputados.id
-- Limite resultados com LIMIT quando apropriado
-- Use ORDER BY para ordenar resultados
-- Para valores monetários, use SUM("valorLiquido")
-- Para contar despesas, use COUNT(*)
-- Os nomes das colunas com maiúsculas devem estar entre aspas duplas (ex: "deputadoId", "valorLiquido")
-- Sempre use aspas duplas para nomes de colunas case-sensitive
+IMPORTANT Rules:
+- ALWAYS use "deputados" and "despesas" (PLURAL) in SQL commands
+- ALWAYS use valorLiquido for expense calculations (not valorDocumento)
+- To join deputies and expenses, use: JOIN deputados ON despesas."deputadoId" = deputados.id
+- Limit results with LIMIT when appropriate
+- Use ORDER BY to sort results
+- For monetary values, use SUM("valorLiquido")
+- To count expenses, use COUNT(*)
+- Column names with uppercase letters must be in double quotes (ex: "deputadoId", "valorLiquido")
+- Always use double quotes for case-sensitive column names
 
-EXEMPLOS DE QUERIES CORRETAS:
+CORRECT QUERY EXAMPLES:
 - SELECT * FROM deputados WHERE nome ILIKE '%nikolas%';
 - SELECT SUM("valorLiquido") FROM despesas WHERE "deputadoId" = 123 AND ano = 2024;
 - SELECT d.nome, SUM(de."valorLiquido") as total FROM deputados d JOIN despesas de ON d.id = de."deputadoId" GROUP BY d.nome;
@@ -99,110 +98,111 @@ EXEMPLOS DE QUERIES CORRETAS:
 `;
   }
 
-  async perguntarSobreGastos(pergunta: string, historico: Message[] = []): Promise<string> {
+  async askAboutExpenses(question: string, history: Message[] = []): Promise<string> {
     try {
       if (!this.llm) {
-        throw new Error('Serviço de IA não inicializado. Verifique a configuração do GPT-4 da OpenAI.');
+        throw new Error('AI service not initialized. Check GPT-4 OpenAI configuration.');
       }
 
-      this.logger.log(`Processando pergunta: ${pergunta}`);
-      this.logger.log(`Histórico de ${historico.length} mensagens`);
+      this.logger.log(`Processing question: ${question}`);
+      this.logger.log(`History of ${history.length} messages`);
 
-      // Construir contexto do histórico escapando chaves para evitar erro de f-string
-      const contextoHistorico = historico.length > 0 
-        ? `\n\nHISTÓRICO DA CONVERSA (use para entender contexto e referências como "dele", "dela", "esse deputado", "primeira colocada", "mês atual", etc):\n${historico.map(m => `${m.role === 'user' ? 'Usuário' : 'Assistente'}: ${m.content.replace(/{/g, '{{').replace(/}/g, '}}')}`).join('\n')}\n\nDATA ATUAL: ${new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })} (use para interpretar "mês atual")\n`
-        : `\n\nDATA ATUAL: ${new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })} (use para interpretar "mês atual")\n`;
+      // Build history context escaping curly braces to avoid f-string errors
+      const historyContext = history.length > 0 
+        ? `\n\nCONVERSATION HISTORY (use to understand context and references like "his", "hers", "that deputy", "first place", "current month", etc):\n${history.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content.replace(/{/g, '{{').replace(/}/g, '}}')}`).join('\n')}\n\nCURRENT DATE: ${new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })} (use to interpret "current month")\n`
+        : `\n\nCURRENT DATE: ${new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })} (use to interpret "current month")\n`;
 
-      // 1. Gerar query SQL
+      // 1. Generate SQL query
       const sqlPrompt = PromptTemplate.fromTemplate(`
 ${this.getSchemaContext()}
-${contextoHistorico}
-Pergunta do usuário: {question}
+${historyContext}
+User question: {question}
 
-INSTRUÇÕES OBRIGATÓRIAS - LEIA COM MUITA ATENÇÃO:
-1. TODOS os nomes de colunas com maiúsculas DEVEM estar entre aspas duplas
-2. Exemplos CORRETOS que você DEVE seguir:
+MANDATORY INSTRUCTIONS - READ CAREFULLY:
+1. ALL column names with uppercase letters MUST be in double quotes
+2. CORRECT examples you MUST follow:
    - SELECT "siglaPartido", "siglaUf", nome FROM deputados
    - WHERE "deputadoId" = 123
    - SUM("valorLiquido") as total
    - "tipoDespesa", "valorLiquido", "nomeFornecedor"
-3. Nomes em LOWERCASE não precisam de aspas:
+3. Lowercase names don't need quotes:
    - SELECT id, nome, ano FROM deputados
-4. Use SEMPRE "deputados" e "despesas" (PLURAL)
-5. Use aspas duplas em TODAS as colunas: "deputadoId", "siglaPartido", "siglaUf", "valorLiquido", "tipoDespesa", "nomeFornecedor", "cnpjCpfFornecedor", "valorGlosa", "valorDocumento"
-6. Retorne APENAS SQL puro, sem markdown, sem explicações
-7. IMPORTANTE: Se a pergunta usar pronomes como "dele", "dela", "esse", "aquele", use o histórico para identificar o deputado/contexto mencionado anteriormente
-8. CRÍTICO - Busca de nomes de deputados:
-   - SEMPRE use ILIKE com % para buscar nomes (busca parcial case-insensitive)
-   - Exemplos: WHERE nome ILIKE '%Nikolas%' ou WHERE nome ILIKE '%Bandeira%Mello%'
-   - NUNCA use = ou IN com nomes completos, pois o banco pode ter nomes parciais
-   - Para múltiplos deputados use: WHERE nome ILIKE '%Nome1%' OR nome ILIKE '%Nome2%'
-   - Se o usuário mencionar "Eduardo Bandeira de Mello", busque por '%Bandeira%Mello%'
+4. ALWAYS use "deputados" and "despesas" (PLURAL)
+5. Use double quotes in ALL columns: "deputadoId", "siglaPartido", "siglaUf", "valorLiquido", "tipoDespesa", "nomeFornecedor", "cnpjCpfFornecedor", "valorGlosa", "valorDocumento"
+6. Return ONLY pure SQL, no markdown, no explanations
+7. IMPORTANT: If the question uses pronouns like "his", "hers", "that", use history to identify the deputy/context mentioned previously
+8. CRITICAL - Deputy name search:
+   - ALWAYS use ILIKE with % for name searches (partial case-insensitive search)
+   - Examples: WHERE nome ILIKE '%Nikolas%' or WHERE nome ILIKE '%Bandeira%Mello%'
+   - NEVER use = or IN with full names, as the database may have partial names
+   - For multiple deputies use: WHERE nome ILIKE '%Name1%' OR nome ILIKE '%Name2%'
+   - If user mentions "Eduardo Bandeira de Mello", search for '%Bandeira%Mello%'
 
-Agora gere APENAS a query SQL com aspas duplas nas colunas camelCase:
+Now generate ONLY the SQL query with double quotes in camelCase columns:
 `);
 
-      const sqlQuery = await this.llm.call(await sqlPrompt.format({ question: pergunta }));
+      const sqlQuery = await this.llm.call(await sqlPrompt.format({ question }));
 
-      // Limpar a query (remover markdown, espaços extras, etc)
+      // Clean the query (remove markdown, extra spaces, etc)
       const cleanedQuery = sqlQuery
         .replace(/```sql/g, '')
         .replace(/```/g, '')
         .trim();
 
-      this.logger.log(`[DEBUG] Query SQL gerada pelo LLM: ${cleanedQuery}`);
+      this.logger.log(`[DEBUG] SQL query generated by LLM: ${cleanedQuery}`);
 
-      // 2. Executar query
-      const resultado = await this.dataSource.query(cleanedQuery);
+      // 2. Execute query
+      const result = await this.dataSource.query(cleanedQuery);
 
-      this.logger.log(`[DEBUG] Resultado da query (${resultado.length} linhas):`);
-      this.logger.log(`[DEBUG] Dados completos: ${JSON.stringify(resultado, null, 2)}`);
+      this.logger.log(`[DEBUG] Query result (${result.length} rows):`);
+      this.logger.log(`[DEBUG] Complete data: ${JSON.stringify(result, null, 2)}`);
 
-      // 3. Gerar resposta em linguagem natural
+      // 3. Generate natural language response
       const answerPrompt = PromptTemplate.fromTemplate(`
-Você é um assistente que responde sobre gastos de deputados brasileiros de forma clara e amigável.
-${contextoHistorico}
-Dados da consulta (JSON): {result}
-Pergunta: {question}
+You are an assistant that answers questions about Brazilian deputies' expenses in a clear and friendly way.
+${historyContext}
+Query data (JSON): {result}
+Question: {question}
 
-REGRAS CRÍTICAS - LEIA COM ATENÇÃO:
-1. NUNCA mostre JSON bruto na resposta - sempre converta para texto natural
-2. Use os valores EXATOS do JSON - NÃO calcule, NÃO estime, NÃO arredonde
-3. Formate valores monetários como "R$ X,XX"
-4. Para listas/rankings:
-   - Use numeração: 1º, 2º, 3º, etc.
-   - Mostre nome completo, partido/UF quando disponível
-   - Formate: "1º - [Nome] ([Partido]/[UF]): R$ [valor]"
-5. Para gastos individuais:
-   - Seja direto: "O deputado [Nome] gastou R$ [valor] em [período/categoria]"
-6. Para fornecedores:
-   - "O principal fornecedor foi [Nome] com R$ [valor]"
-7. Se resultado vazio, seja educado: "Não encontrei informações sobre isso"
-8. Use o histórico para entender contexto e referências
-9. Seja conciso mas completo
+CRITICAL RULES - READ CAREFULLY:
+1. NEVER show raw JSON in the response - always convert to natural text
+2. Use EXACT values from JSON - DON'T calculate, DON'T estimate, DON'T round
+3. Format monetary values as "R$ X,XX"
+4. For lists/rankings:
+   - Use numbering: 1º, 2º, 3º, etc.
+   - Show full name, party/state when available
+   - Format: "1º - [Name] ([Party]/[State]): R$ [value]"
+5. For individual expenses:
+   - Be direct: "Deputy [Name] spent R$ [value] in [period/category]"
+6. For suppliers:
+   - "The main supplier was [Name] with R$ [value]"
+7. If empty result, be polite: "I didn't find information about this"
+8. Use history to understand context and references
+9. Be concise but complete
+10. Answer in Portuguese (Brazilian)
 
-Agora responda de forma NATURAL e AMIGÁVEL:
+Now answer in a NATURAL and FRIENDLY way:
 `);
 
-      const resposta = await this.llm.call(await answerPrompt.format({
-        question: pergunta,
-        result: JSON.stringify(resultado, null, 2),
+      const response = await this.llm.call(await answerPrompt.format({
+        question,
+        result: JSON.stringify(result, null, 2),
       }));
 
-      this.logger.log('Pergunta processada com sucesso');
+      this.logger.log('Question processed successfully');
 
-      // Limpar quebras de linha extras e formatar melhor
-      const respostaLimpa = resposta.replace(/\n/g, ' ').replace(/\n\n+/g, ' ').trim();
+      // Clean extra line breaks and format better
+      const cleanedResponse = response.replace(/\n/g, ' ').replace(/\n\n+/g, ' ').trim();
 
-      return respostaLimpa;
+      return cleanedResponse;
     } catch (error) {
-      this.logger.error('Erro ao processar pergunta:', error.message);
+      this.logger.error('Error processing question:', error.message);
 
       if (error.message.includes('syntax error')) {
-        throw new Error('Desculpe, não consegui entender sua pergunta. Tente reformular.');
+        throw new Error('Sorry, I couldn\'t understand your question. Please try rephrasing.');
       }
 
-      throw new Error(`Erro ao processar sua pergunta: ${error.message}`);
+      throw new Error(`Error processing your question: ${error.message}`);
     }
   }
 }

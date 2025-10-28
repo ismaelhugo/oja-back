@@ -9,55 +9,55 @@ interface Message {
 
 @Controller('ai')
 export class AiController {
-  // Armazena histórico de conversas por sessão
-  private sessoes = new Map<string, Message[]>();
+  // Store conversation history per session
+  private sessions = new Map<string, Message[]>();
 
   constructor(private readonly aiService: AiService) {
-    // Limpar sessões antigas a cada 1 hora
-    setInterval(() => this.limparSessoesAntigas(), 60 * 60 * 1000);
+    // Clean old sessions every 1 hour
+    setInterval(() => this.cleanOldSessions(), 60 * 60 * 1000);
   }
 
   @Post('perguntar')
   @HttpCode(HttpStatus.OK)
-  async perguntar(
-    @Body('pergunta') pergunta: string,
-    @Body('sessaoId') sessaoId?: string,
+  async ask(
+    @Body('pergunta') question: string,
+    @Body('sessaoId') sessionId?: string,
   ) {
-    if (!pergunta || pergunta.trim() === '') {
+    if (!question || question.trim() === '') {
       return {
-        erro: 'Pergunta não pode estar vazia',
+        erro: 'Question cannot be empty',
       };
     }
 
     try {
-      // Gera ou recupera ID da sessão
-      const id = sessaoId || randomUUID();
+      // Generate or retrieve session ID
+      const id = sessionId || randomUUID();
       
-      // Recupera histórico da sessão (ou cria novo)
-      const historico = this.sessoes.get(id) || [];
+      // Retrieve session history (or create new)
+      const history = this.sessions.get(id) || [];
       
-      // Limita histórico às últimas 6 mensagens antes de enviar para OpenAI
-      const historicoLimitado = historico.slice(-6);
+      // Limit history to last 6 messages before sending to OpenAI
+      const limitedHistory = history.slice(-6);
       
-      const resposta = await this.aiService.perguntarSobreGastos(
-        pergunta,
-        historicoLimitado,
+      const response = await this.aiService.askAboutExpenses(
+        question,
+        limitedHistory,
       );
       
-      // Salva histórico completo no backend
-      historico.push(
-        { role: 'user', content: pergunta },
-        { role: 'assistant', content: resposta }
+      // Save complete history in backend
+      history.push(
+        { role: 'user', content: question },
+        { role: 'assistant', content: response }
       );
       
-      // Mantém apenas últimas 20 mensagens no histórico completo
-      const historicoAtualizado = historico.slice(-20);
-      this.sessoes.set(id, historicoAtualizado);
+      // Keep only last 20 messages in complete history
+      const updatedHistory = history.slice(-20);
+      this.sessions.set(id, updatedHistory);
 
       return {
         sessaoId: id,
-        pergunta,
-        resposta,
+        pergunta: question,
+        resposta: response,
       };
     } catch (error) {
       return {
@@ -68,20 +68,20 @@ export class AiController {
 
   @Post('limpar-sessao')
   @HttpCode(HttpStatus.OK)
-  limparSessao(@Body('sessaoId') sessaoId: string) {
-    if (!sessaoId) {
-      return { erro: 'sessaoId é obrigatório' };
+  clearSession(@Body('sessaoId') sessionId: string) {
+    if (!sessionId) {
+      return { erro: 'sessionId is required' };
     }
     
-    this.sessoes.delete(sessaoId);
+    this.sessions.delete(sessionId);
     return { sucesso: true };
   }
 
-  private limparSessoesAntigas() {
-    // Limpa sessões com mais de 100 interações (considerando inativas)
-    for (const [id, historico] of this.sessoes.entries()) {
-      if (historico.length > 100) {
-        this.sessoes.delete(id);
+  private cleanOldSessions() {
+    // Clean sessions with more than 100 interactions (considered inactive)
+    for (const [id, history] of this.sessions.entries()) {
+      if (history.length > 100) {
+        this.sessions.delete(id);
       }
     }
   }
