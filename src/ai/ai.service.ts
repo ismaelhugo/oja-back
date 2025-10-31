@@ -1,208 +1,257 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { OpenAI } from '@langchain/openai';
 import { DataSource } from 'typeorm';
-import { PromptTemplate } from '@langchain/core/prompts';
+import { McpService } from './mcp/mcp.service';
+import OpenAI from 'openai';
 
 interface Message {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
+  tool_calls?: any[];
+  tool_call_id?: string;
 }
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private llm: OpenAI;
+  private openai: OpenAI | null = null;
+  private model: string = 'gpt-4o-mini';
 
   constructor(
-    @InjectDataSource()
-    private dataSource: DataSource,
+    @InjectDataSource() private dataSource: DataSource,
+    private mcpService: McpService,
   ) {}
 
   async onModuleInit() {
-    // Initialize OpenAI GPT-4 model
+    // Initialize OpenAI configuration
     try {
       const apiKey = process.env.OPENAI_API_KEY;
-      const model = process.env.OPENAI_MODEL || 'gpt-4o';
-      
+      this.model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
       console.log('🔍 [DEBUG] Environment variables:');
-      console.log('   OPENAI_API_KEY:', apiKey ? `${apiKey.substring(0, 20)}...` : 'NOT DEFINED');
-      console.log('   OPENAI_MODEL:', model);
+      console.log(
+        '   OPENAI_API_KEY:',
+        apiKey ? `${apiKey.substring(0, 20)}...` : 'NOT DEFINED',
+      );
+      console.log('   OPENAI_MODEL:', this.model);
 
       if (!apiKey) {
         throw new Error('OPENAI_API_KEY is not defined in .env');
       }
 
-      this.llm = new OpenAI({
-        openAIApiKey: apiKey,
-        modelName: model,
-        temperature: 0,
+      this.openai = new OpenAI({
+        apiKey: apiKey,
       });
 
-      this.logger.log('✅ AI service initialized with OpenAI GPT-4o');
+      this.logger.log(
+        `✅ AI service initialized with OpenAI ${this.model} and MCP tools`,
+      );
       this.logger.log('✅ PostgreSQL database connection established');
+      this.logger.log(
+        `✅ MCP Tools available: ${this.mcpService.getToolsSchema().length}`,
+      );
     } catch (error) {
-      this.logger.error('❌ Error initializing OpenAI GPT-4o:', error.message);
+      this.logger.error('❌ Error initializing AI service:', error.message);
       this.logger.error('Stack:', error.stack);
     }
   }
 
-  private getSchemaContext(): string {
-    return `
-You are an assistant specialized in analyzing expenses of Brazilian deputies.
+  private getSystemPrompt(): string {
+    const currentYear = new Date().getFullYear();
 
-The PostgreSQL database has the following tables:
+    return `Você analisa gastos de deputados federais brasileiros usando as tools disponíveis.
 
-1. Table: deputados (ATTENTION: table name in PLURAL)
-   Columns:
-   - id (integer): Official ID from Chamber of Deputies
-   - id_local (integer, PK): Unique ID in local database
-   - nome (varchar): Deputy's full name
-   - siglaPartido (varchar): Party acronym (ex: PT, PSDB, PL, etc)
-   - siglaUf (varchar): State acronym (ex: SP, RJ, MG, etc)
-   - urlFoto (varchar): Photo URL
-   - email (varchar): Deputy's email
+ANO ATUAL: ${currentYear}
+ANO PADRÃO: Use 2025 quando não houver período especificado (exceto "toda legislatura", "todos dados")
 
-2. Table: despesas (ATTENTION: table name in PLURAL)
-   Columns:
-   - id_local (integer, PK): Unique expense ID
-   - deputadoId (integer): Deputy ID (matches 'id' from deputados table)
-   - ano (integer): Expense year
-   - mes (integer): Expense month (1-12)
-   - tipoDespesa (varchar): Expense type/category
-   - codDocumento (integer): Document code
-   - numDocumento (varchar): Document number
-   - valorDocumento (decimal): Original document value
-   - valorGlosa (decimal): Discount value
-   - valorLiquido (decimal): Net paid value (use this for calculations)
-   - nomeFornecedor (varchar): Supplier name
-   - cnpjCpfFornecedor (varchar): Supplier CNPJ/CPF
-   - dataDocumento (varchar): Document date
+TOOLS:
+${this.mcpService.getToolsDescription()}
 
-IMPORTANT Rules:
-- ALWAYS use "deputados" and "despesas" (PLURAL) in SQL commands
-- ALWAYS use valorLiquido for expense calculations (not valorDocumento)
-- To join deputies and expenses, use: JOIN deputados ON despesas."deputadoId" = deputados.id
-- Limit results with LIMIT when appropriate
-- Use ORDER BY to sort results
-- For monetary values, use SUM("valorLiquido")
-- To count expenses, use COUNT(*)
-- Column names with uppercase letters must be in double quotes (ex: "deputadoId", "valorLiquido")
-- Always use double quotes for case-sensitive column names
+GUIA DE USO:
+1. search_deputy → Buscar deputado por nome
+2. get_deputies_by_party → Listar deputados de um partido (extrair partido do contexto se não especificado)
+3. get_deputy_expenses → Total de gastos de UM deputado
+4. get_deputy_monthly_expenses → Gastos mensais e média mensal de UM deputado
+5. get_top_deputies → Rankings (orderBy: "desc"=mais, "asc"=menos). Suporta expenseType, state, year
+6. get_top_parties → Rankings de partidos (orderBy: "desc"/"asc")
+7. get_top_states → Rankings de estados (orderBy: "desc"/"asc")
+8. get_expense_types → Ranking OU total de tipo específico (com expenseType retorna total)
+9. get_top_suppliers → Fornecedores (sem deputyId=geral, com deputyId=específico)
+10. compare_deputies → Comparar 2+ deputados
+11. compare_parties → Gastos de partido(s). Use para "gastos do PT", "gastos com X do partido Y", comparar 2+ partidos. Suporta expenseType
+12. compare_states → Comparar 2+ estados
+13. get_statistics → AVG/SUM/MIN/MAX (groupBy: "party"/"state"/"none", orderBy: "avg_asc"/"avg_desc"/"total_asc"/"total_desc", minDeputies para filtrar grupos pequenos)
 
-CORRECT QUERY EXAMPLES:
-- SELECT * FROM deputados WHERE nome ILIKE '%nikolas%';
-- SELECT SUM("valorLiquido") FROM despesas WHERE "deputadoId" = 123 AND ano = 2024;
-- SELECT d.nome, SUM(de."valorLiquido") as total FROM deputados d JOIN despesas de ON d.id = de."deputadoId" GROUP BY d.nome;
-- SELECT d.nome, SUM(de."valorLiquido") as total FROM deputados d JOIN despesas de ON d.id = de."deputadoId" WHERE (d.nome ILIKE '%Nikolas%' OR d.nome ILIKE '%Bandeira%Mello%') AND de.ano = 2025 GROUP BY d.nome;
-`;
+FILTROS: year, month, day, state, expenseType, legislatura, startDate/endDate
+
+REGRAS CRÍTICAS:
+- ANO PADRÃO: Sem período → year=2025 (mencionar "em 2025" na resposta)
+- Gastos de partido: "gastos do PT", "gastos com X do PT" → compare_parties(parties: ["PT"], expenseType?, year: 2025)
+- expenseType usa busca semântica: "combustível"→"COMBUSTÍVEIS E LUBRIFICANTES", "passagens aéreas"→"PASSAGEM", "AEREA", "aluguel de carro"→"LOCAÇÃO OU FRETAMENTO DE VEÍCULOS"
+- Médias: SEMPRE use get_statistics (NUNCA calcule de top 10). "menor/maior média" → minDeputies=3
+- Contexto: "deputados do partido?" → extrair partido da conversa anterior
+- Fornecedores sem deputado específico → SEM deputyId
+
+FORMATAÇÃO:
+- Português brasileiro
+- APENAS TEXTO SIMPLES - NUNCA use markdown, bold (**texto**), itálico, ou qualquer formatação
+- Deputado: "Nome (PARTIDO/UF)"
+- Moeda: "R$ 1.234.567,89"
+- SEMPRE mencionar período usado: "em 2025", "da legislatura 57", "no período X a Y"
+- Rankings: "1º - Item: R$ valor" (um por linha)
+- Lista deputados: "• Nome (PARTIDO/UF)" (sem emails/fotos)
+- Estatísticas: incluir total deputados, gasto total, média, min, max
+
+NUNCA: JSON bruto, inventar números, calcular médias parciais, arredondar, dizer "não encontrei" se há dados, usar markdown ou formatação (**bold**, *itálico*, etc)
+
+Fora do escopo: "Desculpe, sou especializado apenas em análise de gastos de deputados federais brasileiros."`;
   }
 
-  async askAboutExpenses(question: string, history: Message[] = []): Promise<string> {
+  async askAboutExpenses(
+    question: string,
+    history: Message[] = [],
+  ): Promise<string> {
     try {
-      if (!this.llm) {
-        throw new Error('AI service not initialized. Check GPT-4 OpenAI configuration.');
+      if (!this.openai) {
+        throw new Error(
+          'AI service not initialized. Check OpenAI configuration.',
+        );
       }
 
       this.logger.log(`Processing question: ${question}`);
-      this.logger.log(`History of ${history.length} messages`);
 
-      // Build history context escaping curly braces to avoid f-string errors
-      const historyContext = history.length > 0 
-        ? `\n\nCONVERSATION HISTORY (use to understand context and references like "his", "hers", "that deputy", "first place", "current month", etc):\n${history.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content.replace(/{/g, '{{').replace(/}/g, '}}')}`).join('\n')}\n\nCURRENT DATE: ${new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })} (use to interpret "current month")\n`
-        : `\n\nCURRENT DATE: ${new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })} (use to interpret "current month")\n`;
+      // Build messages array with system prompt and history
+      const messages: any[] = [
+        { role: 'system', content: this.getSystemPrompt() },
+      ];
 
-      // 1. Generate SQL query
-      const sqlPrompt = PromptTemplate.fromTemplate(`
-${this.getSchemaContext()}
-${historyContext}
-User question: {question}
+      // Add conversation history (only user/assistant messages to save tokens)
+      history.forEach((msg) => {
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          messages.push({
+            role: msg.role,
+            content: msg.content,
+          });
+        }
+      });
 
-MANDATORY INSTRUCTIONS - READ CAREFULLY:
-1. ALL column names with uppercase letters MUST be in double quotes
-2. CORRECT examples you MUST follow:
-   - SELECT "siglaPartido", "siglaUf", nome FROM deputados
-   - WHERE "deputadoId" = 123
-   - SUM("valorLiquido") as total
-   - "tipoDespesa", "valorLiquido", "nomeFornecedor"
-3. Lowercase names don't need quotes:
-   - SELECT id, nome, ano FROM deputados
-4. ALWAYS use "deputados" and "despesas" (PLURAL)
-5. Use double quotes in ALL columns: "deputadoId", "siglaPartido", "siglaUf", "valorLiquido", "tipoDespesa", "nomeFornecedor", "cnpjCpfFornecedor", "valorGlosa", "valorDocumento"
-6. Return ONLY pure SQL, no markdown, no explanations
-7. IMPORTANT: If the question uses pronouns like "his", "hers", "that", use history to identify the deputy/context mentioned previously
-8. CRITICAL - Deputy name search:
-   - ALWAYS use ILIKE with % for name searches (partial case-insensitive search)
-   - Examples: WHERE nome ILIKE '%Nikolas%' or WHERE nome ILIKE '%Bandeira%Mello%'
-   - NEVER use = or IN with full names, as the database may have partial names
-   - For multiple deputies use: WHERE nome ILIKE '%Name1%' OR nome ILIKE '%Name2%'
-   - If user mentions "Eduardo Bandeira de Mello", search for '%Bandeira%Mello%'
+      // Add current question
+      messages.push({ role: 'user', content: question });
 
-Now generate ONLY the SQL query with double quotes in camelCase columns:
-`);
+      // Get tools schema for function calling
+      const tools = this.mcpService.getToolsSchema();
 
-      const sqlQuery = await this.llm.call(await sqlPrompt.format({ question }));
+      let response = await this.openai.chat.completions.create({
+        model: this.model,
+        messages: messages,
+        tools: tools,
+        tool_choice: 'auto',
+        temperature: 0,
+      });
 
-      // Clean the query (remove markdown, extra spaces, etc)
-      const cleanedQuery = sqlQuery
-        .replace(/```sql/g, '')
-        .replace(/```/g, '')
-        .trim();
+      let iterations = 0;
+      const maxIterations = 10;
 
-      this.logger.log(`[DEBUG] SQL query generated by LLM: ${cleanedQuery}`);
+      // Handle tool calls loop
+      while (
+        response.choices[0].message.tool_calls &&
+        iterations < maxIterations
+      ) {
+        iterations++;
+        const toolCalls = response.choices[0].message.tool_calls;
+        this.logger.log(`[Tool] ${toolCalls.length} call(s) requested`);
 
-      // 2. Execute query
-      const result = await this.dataSource.query(cleanedQuery);
+        messages.push(response.choices[0].message);
 
-      this.logger.log(`[DEBUG] Query result (${result.length} rows):`);
-      this.logger.log(`[DEBUG] Complete data: ${JSON.stringify(result, null, 2)}`);
+        // Execute each tool call
+        for (const toolCall of toolCalls) {
+          if (toolCall.type !== 'function') continue;
 
-      // 3. Generate natural language response
-      const answerPrompt = PromptTemplate.fromTemplate(`
-You are an assistant that answers questions about Brazilian deputies' expenses in a clear and friendly way.
-${historyContext}
-Query data (JSON): {result}
-Question: {question}
+          const toolName = toolCall.function.name;
+          const toolArgs = JSON.parse(toolCall.function.arguments);
 
-CRITICAL RULES - READ CAREFULLY:
-1. NEVER show raw JSON in the response - always convert to natural text
-2. Use EXACT values from JSON - DON'T calculate, DON'T estimate, DON'T round
-3. Format monetary values as "R$ X,XX"
-4. For lists/rankings:
-   - Use numbering: 1º, 2º, 3º, etc.
-   - Show full name, party/state when available
-   - Format: "1º - [Name] ([Party]/[State]): R$ [value]"
-5. For individual expenses:
-   - Be direct: "Deputy [Name] spent R$ [value] in [period/category]"
-6. For suppliers:
-   - "The main supplier was [Name] with R$ [value]"
-7. If empty result, be polite: "I didn't find information about this"
-8. Use history to understand context and references
-9. Be concise but complete
-10. Answer in Portuguese (Brazilian)
+          try {
+            const result = await this.mcpService.executeTool(
+              toolName,
+              toolArgs,
+            );
 
-Now answer in a NATURAL and FRIENDLY way:
-`);
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: JSON.stringify(result),
+            });
+          } catch (error) {
+            this.logger.error(`[Tool] Error: ${error.message}`);
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: JSON.stringify({ error: error.message }),
+            });
+          }
+        }
 
-      const response = await this.llm.call(await answerPrompt.format({
-        question,
-        result: JSON.stringify(result, null, 2),
-      }));
-
-      this.logger.log('Question processed successfully');
-
-      // Clean extra line breaks and format better
-      const cleanedResponse = response.replace(/\n/g, ' ').replace(/\n\n+/g, ' ').trim();
-
-      return cleanedResponse;
-    } catch (error) {
-      this.logger.error('Error processing question:', error.message);
-
-      if (error.message.includes('syntax error')) {
-        throw new Error('Sorry, I couldn\'t understand your question. Please try rephrasing.');
+        // Get next response
+        response = await this.openai.chat.completions.create({
+          model: this.model,
+          messages: messages,
+          tools: tools,
+          tool_choice: 'auto',
+          temperature: 0,
+        });
       }
 
-      throw new Error(`Error processing your question: ${error.message}`);
+      const content =
+        response.choices[0].message.content ||
+        'Desculpe, não consegui processar sua pergunta.';
+
+      // Remove qualquer formatação markdown das respostas
+      const cleanContent = this.removeMarkdown(content);
+
+      return cleanContent;
+    } catch (error) {
+      this.logger.error(`Error: ${error.message}`);
+      throw error;
     }
+  }
+
+  /**
+   * Remove formatação markdown das respostas
+   * Mantém bullets (•) que são parte do formato esperado
+   */
+  private removeMarkdown(text: string): string {
+    if (!text) return text;
+
+    return (
+      text
+        // Remove bold (**texto** ou __texto__)
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        // Remove itálico (*texto* ou _texto_) - evita remover bullets •
+        .replace(/\*([^*\n•]+)\*/g, '$1')
+        .replace(/_([^_\n•]+)_/g, '$1')
+        // Remove headers (#, ##, ###)
+        .replace(/^#+\s+/gm, '')
+        // Remove links [texto](url) -> texto
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+        // Remove código inline `código`
+        .replace(/`([^`]+)`/g, '$1')
+        // Remove código em bloco ```código```
+        .replace(/```[\s\S]*?```/g, '')
+        // Remove listas markdown no início de linha (-, +)
+        .replace(/^[\s]*[-+]\s+/gm, '')
+        // Remove asteriscos markdown (*) no início de linha (mas preserva bullets •)
+        .replace(/^\s*\*\s+/gm, (match, offset, string) => {
+          // Se a próxima linha contém bullet •, pode ser que seja necessário preservar
+          // Por segurança, removemos todos os * iniciais que não são bullets
+          return '';
+        })
+        // Remove numeração markdown (1., 2., etc)
+        .replace(/^\d+\.\s+/gm, '')
+        // Remove múltiplas quebras de linha
+        .replace(/\n{3,}/g, '\n\n')
+        // Trim espaços extras
+        .trim()
+    );
   }
 }
