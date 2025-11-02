@@ -14,6 +14,20 @@ export interface MCPTool {
 }
 
 /**
+ * Normaliza nome de partido: mapeia nomes antigos para os novos nomes usados no banco
+ */
+function normalizePartyName(partyName: string): string {
+  const normalized = partyName.trim().toUpperCase();
+
+  // Mapeamento de nomes antigos para nomes novos
+  const partyMap: Record<string, string> = {
+    PMDB: 'MDB', // Partido do Movimento Democrático Brasileiro → Movimento Democrático Brasileiro
+  };
+
+  return partyMap[normalized] || normalized;
+}
+
+/**
  * Mapeamento semântico de termos comuns para palavras-chave dos tipos de despesa no banco
  * Entende o contexto/significado por trás dos termos do usuário
  */
@@ -196,6 +210,8 @@ export const getDeputiesByPartyTool: MCPTool = {
   handler: async (params, dataSource) => {
     const { party, state, limit = 100 } = params;
 
+    const normalizedParty = normalizePartyName(party);
+
     let query = `
       SELECT 
         id, 
@@ -209,7 +225,7 @@ export const getDeputiesByPartyTool: MCPTool = {
       WHERE "siglaPartido" = $1
     `;
 
-    const queryParams: any[] = [party.toUpperCase()];
+    const queryParams: any[] = [normalizedParty];
 
     if (state) {
       query += ` AND "siglaUf" = $${queryParams.length + 1}`;
@@ -1076,7 +1092,7 @@ export const comparePartiesTool: MCPTool = {
       WHERE d."siglaPartido" = ANY($1)
     `;
 
-    const queryParams: any[] = [parties.map((p) => p.toUpperCase())];
+    const queryParams: any[] = [parties.map((p) => normalizePartyName(p))];
 
     if (legislatura) {
       query += ` AND d."idLegislatura" = $${queryParams.length + 1}`;
@@ -1466,7 +1482,7 @@ export const getStatisticsTool: MCPTool = {
 
     if (party) {
       query += ` AND d."siglaPartido" = $${queryParams.length + 1}`;
-      queryParams.push(party.toUpperCase());
+      queryParams.push(normalizePartyName(party));
     }
 
     if (groupByClause) {
@@ -1506,6 +1522,357 @@ export const getStatisticsTool: MCPTool = {
 };
 
 /**
+ * Tool 12: Get General Information About Cota Parlamentar
+ */
+export const getCotaParlamentarInfoTool: MCPTool = {
+  name: 'get_cota_parlamentar_info',
+  description:
+    'Get general information about Cota Parlamentar (CEAP - Cota para o Exercício da Atividade Parlamentar). Use for questions like "o que é a cota parlamentar", "quanto é a cota", "quais são os limites", "o que pode ser pago com a cota", "como funciona a cota", "valores da cota por estado", "regras da cota parlamentar", "tipos de despesas permitidas". Returns structured information about CEAP rules, values, limits, allowed expenses, and usage methods.',
+  inputSchema: z.object({
+    topic: z
+      .string()
+      .optional()
+      .describe(
+        'Optional: Specific topic to filter information (e.g., "valores", "limites", "despesas permitidas", "passagens aereas", "reembolso", "adicional"). If not provided, returns comprehensive information.',
+      ),
+    state: z
+      .string()
+      .optional()
+      .describe(
+        'Optional: State acronym (e.g., SP, RJ, MG) to get specific cota value for that state.',
+      ),
+  }),
+  handler: async (params, _dataSource) => {
+    const { topic, state } = params;
+
+    // Base de conhecimento sobre a Cota Parlamentar (CEAP)
+    // Fonte: https://www2.camara.leg.br/comunicacao/assessoria-de-imprensa/guia-para-jornalistas/cota-parlamentar
+    const cotaInfo = {
+      definicao: {
+        nome_completo: 'Cota para o Exercício da Atividade Parlamentar (CEAP)',
+        instituicao: 'Ato da Mesa 43/2009',
+        descricao:
+          'Unificou a verba indenizatória (desde 2001), a cota de passagens aéreas e a cota postal-telefônica. O valor mensal deve ser utilizado pelo deputado para custear despesas típicas do exercício do mandato parlamentar.',
+        acumulacao:
+          'O saldo mensal não utilizado acumula-se ao longo do exercício financeiro, mas não acumula de um exercício para o seguinte.',
+        prazo_reembolso:
+          'Até 90 dias para apresentar documentação comprobatória.',
+        deposito_reembolso:
+          'O valor é depositado na conta do deputado, em média, até três dias úteis depois da solicitação.',
+      },
+      valores_por_estado: {
+        AC: 50426.26,
+        AL: 46737.9,
+        AM: 49363.92,
+        AP: 49168.58,
+        BA: 44804.65,
+        CE: 48245.57,
+        DF: 36582.46,
+        ES: 43217.71,
+        GO: 41300.86,
+        MA: 47945.49,
+        MG: 41886.51,
+        MS: 46336.64,
+        MT: 45221.83,
+        PA: 48021.25,
+        PB: 47826.36,
+        PE: 47470.6,
+        PI: 46765.57,
+        PR: 44665.66,
+        RJ: 41553.77,
+        RN: 48525.79,
+        RO: 49466.29,
+        RR: 51406.33,
+        RS: 46669.7,
+        SC: 45671.58,
+        SE: 45933.06,
+        SP: 42837.33,
+        TO: 45297.41,
+      },
+      despesas_permitidas: [
+        {
+          tipo: 'Passagens aéreas',
+          descricao:
+            'Incluindo despacho de bagagens pessoais e serviços de acesso à internet oferecidos por companhias aéreas ou aeroportos.',
+          adicional:
+            'Até oito passagens aéreas por mês em nome do deputado para voar entre seu estado de representação e Brasília.',
+        },
+        {
+          tipo: 'Telefones',
+          descricao:
+            'Telefones dos gabinetes, dos escritórios nos estados e dos imóveis funcionais, e as despesas com o celular funcional do deputado.',
+          requisito:
+            'As contas devem ser de comprovada responsabilidade do parlamentar.',
+        },
+        {
+          tipo: 'Manutenção de escritórios',
+          descricao:
+            'Locação de imóveis, energia elétrica, água e esgoto, acesso à internet, entre outros.',
+        },
+        {
+          tipo: 'Assinatura de publicações',
+          descricao: 'Assinaturas de periódicos e outras publicações.',
+        },
+        {
+          tipo: 'Alimentação do deputado',
+          descricao: 'Despesas com alimentação do parlamentar.',
+        },
+        {
+          tipo: 'Hospedagem',
+          descricao: 'Hospedagem, exceto no Distrito Federal.',
+        },
+        {
+          tipo: 'Locomoção - Aeronaves',
+          descricao: 'Locação ou fretamento de aeronaves.',
+        },
+        {
+          tipo: 'Locomoção - Veículos automotores',
+          descricao:
+            'Locação ou fretamento de veículos automotores com contratação de seguro permitida.',
+          limite_mensal: 12713.0,
+          limite_tipo: 'inacumulável',
+        },
+        {
+          tipo: 'Locomoção - Embarcações',
+          descricao: 'Locação ou fretamento de embarcações.',
+        },
+        {
+          tipo: 'Locomoção - Táxi, pedágio e estacionamento',
+          descricao: 'Serviços de táxi, pedágio e estacionamento.',
+          limite_mensal: 2700.0,
+          limite_tipo: 'inacumulável',
+        },
+        {
+          tipo: 'Locomoção - Passagens terrestres, marítimas ou fluviais',
+          descricao: 'Passagens terrestres, marítimas ou fluviais.',
+        },
+        {
+          tipo: 'Combustíveis e lubrificantes',
+          descricao: 'Combustíveis e lubrificantes para veículos.',
+          limite_mensal: 9392.0,
+          limite_tipo: 'inacumulável',
+        },
+        {
+          tipo: 'Serviços de segurança',
+          descricao: 'Serviços de segurança de empresas especializadas.',
+          limite_mensal: 8700.0,
+          limite_tipo: 'inacumulável',
+        },
+        {
+          tipo: 'Divulgação da atividade parlamentar',
+          descricao: 'Divulgação da atividade parlamentar.',
+          restricao:
+            'Exceto nos 120 dias anteriores à data das eleições, se o deputado for candidato (Ato da Mesa 40/2012).',
+        },
+        {
+          tipo: 'Participação em cursos, congressos ou eventos',
+          descricao: 'Realizados por instituição especializada.',
+          limite_mensal_percentual: 25,
+          limite_base: 'menor cota',
+          limite_valor_atual: 7697.17,
+          limite_tipo: 'inacumulável',
+        },
+      ],
+      despesas_proibidas: [
+        'Pagamento a parentes até segundo grau ou cônjuge do deputado',
+        'Pagamento a empresas onde o deputado ou parentes sejam sócios ou detentores de participação',
+        'Pagamento a pessoa física (exceto locação de imóvel, uso de aeronave ou embarcação, e serviços de táxi)',
+        'Sem apresentação de nota fiscal (salvo se a empresa estiver legalmente isenta)',
+        'Aquisição de gêneros alimentícios',
+        'Aquisição de material permanente (duração superior a dois anos)',
+        'Locação de bens móveis com cláusulas que possibilitem aquisição com recursos da Cota',
+        'Locação de veículo automotor com serviço de motorista (prestado por pessoa jurídica especializada)',
+        'Gastos de caráter eleitoral',
+        'Gastos referentes à participação em cursos de educação básica, graduação e pós-graduação',
+      ],
+      formas_uso: {
+        RPA: {
+          nome: 'Requisição de Passagem Aérea (RPA)',
+          descricao:
+            'Passagens emitidas pelas companhias aéreas credenciadas pela Câmara. Despesas debitadas do valor da cota mensal do parlamentar através de fatura global.',
+          identificacao:
+            'Aparece como "Passagem aérea - RPA" na página da Cota. Na coluna "Número do documento", aparece o número do bilhete aéreo.',
+          validade:
+            'Validade para uso até o último dia útil do respectivo exercício financeiro.',
+          nota_fiscal: 'Não são emitidas notas fiscais individuais.',
+        },
+        reembolso: {
+          nome: 'Reembolso',
+          descricao:
+            'Quando o deputado compra passagem aérea diretamente nas companhias aéreas.',
+          identificacao:
+            'Aparece como "Passagem aérea - Reembolso" na página da Cota.',
+          nota_fiscal: 'A nota fiscal é anexada em "Número do documento".',
+        },
+        sigepa: {
+          nome: 'Sistema de Gestão de Passagens Aéreas (Sigepa)',
+          descricao:
+            'Permite aos deputados e assessores credenciados realizar reservas, emissões, cancelamentos, remarcações e pedidos de reembolso de passagens aéreas.',
+          identificacao:
+            'Aparece como "Passagem aérea - Sigepa" na página da Cota, com a data da compra.',
+          nota_fiscal:
+            'Na coluna "Número do documento", aparece o número do bilhete aéreo.',
+          debito:
+            'O valor é debitado diretamente da cota mensal do parlamentar.',
+        },
+      },
+      adicional: {
+        cargos_com_adicional: [
+          'Líder ou vice-líder de partido político',
+          'Líder ou vice-líder de bloco parlamentar',
+          'Líder do Governo na Câmara ou no Congresso',
+          'Líder da Minoria',
+          'Presidente ou vice-presidente de comissão permanente',
+          'Representante de partidos políticos com menos de um centésimo da composição da Casa',
+        ],
+        valores: {
+          principal: 1353.04,
+          vice_lider_minoria_governo: 902.02,
+          suplente_secretario_mesa: 5075.62,
+        },
+        acumulacao:
+          'O adicional não é cumulativo caso o parlamentar exerça mais de um cargo.',
+        mercosul:
+          'Deputado em missão oficial pela Representação Brasileira no Parlamento do Mercosul: adicional de 20% do valor da menor cota mensal por viagem realizada.',
+      },
+      despesas_assessores: {
+        permitidas: [
+          'Passagens aéreas, terrestres, marítimas ou fluviais',
+          'Hospedagem',
+          'Locação ou fretamento de veículos, aeronaves e embarcações',
+          'Serviços de táxi',
+          'Pedágio',
+          'Estacionamento',
+          'Aquisição de tokens e certificados digitais',
+        ],
+        condicao:
+          'Funcionários a serviço da atividade parlamentar do deputado.',
+      },
+      notas_fiscais: {
+        disponibilidade:
+          'Desde julho de 2014, cópias digitalizadas das notas fiscais estão disponíveis no sistema de Cota Parlamentar (Portaria 228/2014).',
+        responsabilidade:
+          'A responsabilidade pela digitalização é dos gabinetes parlamentares.',
+        nao_divulgadas: [
+          'Despesas telefônicas (devido ao sigilo telefônico - pode ser solicitado via LAI)',
+          'Gastos com passagens em companhias aéreas credenciadas feitos mediante RPA e Sigepa',
+        ],
+      },
+      referencia:
+        'https://www2.camara.leg.br/comunicacao/assessoria-de-imprensa/guia-para-jornalistas/cota-parlamentar',
+      ultima_atualizacao: '2025-01-15',
+    };
+
+    // Filtrar por tópico se fornecido
+    if (topic) {
+      const topicLower = topic.toLowerCase().trim();
+      const result: any = {
+        topic: topic,
+        informacao: {},
+      };
+
+      if (topicLower.includes('valor') || topicLower.includes('quanto')) {
+        if (state) {
+          const stateUpper = state.toUpperCase();
+          const valor =
+            cotaInfo.valores_por_estado[
+              stateUpper as keyof typeof cotaInfo.valores_por_estado
+            ];
+          if (valor) {
+            result.informacao.valor_estado = {
+              estado: stateUpper,
+              valor_mensal: valor,
+            };
+          }
+        } else {
+          result.informacao.valores_por_estado = cotaInfo.valores_por_estado;
+        }
+      }
+
+      if (topicLower.includes('limite')) {
+        const limites = cotaInfo.despesas_permitidas
+          .filter((d) => d.limite_mensal)
+          .map((d) => ({
+            tipo: d.tipo,
+            limite_mensal: d.limite_mensal,
+            limite_tipo: d.limite_tipo,
+            limite_percentual: d.limite_mensal_percentual,
+            limite_base: d.limite_base,
+            limite_valor_atual: d.limite_valor_atual,
+          }));
+        result.informacao.limites_mensais = limites;
+      }
+
+      if (
+        topicLower.includes('despesa') ||
+        topicLower.includes('pode') ||
+        topicLower.includes('permitid')
+      ) {
+        result.informacao.despesas_permitidas = cotaInfo.despesas_permitidas;
+      }
+
+      if (
+        topicLower.includes('proib') ||
+        topicLower.includes('nao pode') ||
+        topicLower.includes('não pode')
+      ) {
+        result.informacao.despesas_proibidas = cotaInfo.despesas_proibidas;
+      }
+
+      if (
+        topicLower.includes('passagem') ||
+        topicLower.includes('rpa') ||
+        topicLower.includes('reembolso') ||
+        topicLower.includes('sigepa')
+      ) {
+        result.informacao.formas_uso_passagens = cotaInfo.formas_uso;
+      }
+
+      if (
+        topicLower.includes('adicional') ||
+        topicLower.includes('lider') ||
+        topicLower.includes('cargo')
+      ) {
+        result.informacao.adicional = cotaInfo.adicional;
+      }
+
+      if (Object.keys(result.informacao).length === 0) {
+        // Se não encontrou tópico específico, retorna tudo
+        result.informacao = cotaInfo;
+      }
+
+      return result;
+    }
+
+    // Se state foi fornecido mas não topic, retorna apenas valor do estado
+    if (state) {
+      const stateUpper = state.toUpperCase();
+      const valor =
+        cotaInfo.valores_por_estado[
+          stateUpper as keyof typeof cotaInfo.valores_por_estado
+        ];
+      if (valor) {
+        return {
+          estado: stateUpper,
+          valor_mensal: valor,
+          formato: 'R$',
+          periodo: 'mensal',
+          referencia: cotaInfo.referencia,
+        };
+      } else {
+        return {
+          erro: `Estado ${stateUpper} não encontrado. Use a sigla de 2 letras (ex: SP, RJ, MG).`,
+          estados_disponiveis: Object.keys(cotaInfo.valores_por_estado).sort(),
+        };
+      }
+    }
+
+    // Retorna informações completas
+    return Promise.resolve(cotaInfo);
+  },
+};
+
+/**
  * All available MCP tools
  */
 export const mcpTools: MCPTool[] = [
@@ -1522,4 +1889,5 @@ export const mcpTools: MCPTool[] = [
   compareStatesTool,
   getTopStatesTool,
   getStatisticsTool,
+  getCotaParlamentarInfoTool,
 ];

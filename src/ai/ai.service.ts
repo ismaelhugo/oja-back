@@ -81,6 +81,7 @@ GUIA DE USO:
 11. compare_parties → Gastos de partido(s). Use para "gastos do PT", "gastos com X do partido Y", comparar 2+ partidos. Suporta expenseType
 12. compare_states → Comparar 2+ estados
 13. get_statistics → AVG/SUM/MIN/MAX (groupBy: "party"/"state"/"none", orderBy: "avg_asc"/"avg_desc"/"total_asc"/"total_desc", minDeputies para filtrar grupos pequenos)
+14. get_cota_parlamentar_info → Informações gerais sobre CEAP: valores por estado, limites, despesas permitidas/proibidas, formas de uso (RPA/reembolso/Sigepa), adicionais. Use para "o que é a cota", "quanto é a cota", "quais são os limites", "o que pode ser pago"
 
 FILTROS: year, month, day, state, expenseType, legislatura, startDate/endDate
 
