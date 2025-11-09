@@ -161,7 +161,7 @@ function getSemanticSearchTerms(userTerm: string): string[] {
 export const searchDeputyTool: MCPTool = {
   name: 'search_deputy',
   description:
-    'Search for deputies by name (partial, case-insensitive). Returns deputy information including party and state.',
+    'Search for deputies by name (partial, case-insensitive). Returns deputy information including ID, name, party, and state. USE THIS when user mentions a deputy name from a previous conversation (e.g., "fornecedores de Helena Lima" after a ranking question). Extract the exact name from the previous response and search for it. Returns up to 10 results - use the first one if multiple matches are found.',
   inputSchema: z.object({
     name: z.string().describe('Deputy name or partial name to search for'),
   }),
@@ -839,12 +839,12 @@ export const getExpenseTypesTool: MCPTool = {
 export const getTopSuppliersTool: MCPTool = {
   name: 'get_top_suppliers',
   description:
-    'Get ranking of suppliers/companies with highest total payments. If deputyId is NOT provided, returns for ALL deputies (use when user asks "principais fornecedores" without mentioning specific deputy). If deputyId is provided, returns suppliers for that specific deputy. Supports filtering by year, month, day, legislatura, or date range.',
+    'Get ranking of suppliers/companies with highest total payments. If deputyId is NOT provided, returns for ALL deputies (use when user asks "principais fornecedores" without mentioning specific deputy). If deputyId is provided, returns suppliers for that specific deputy. IMPORTANT: When user asks about suppliers of a specific deputy mentioned in previous conversation (e.g., "fornecedores de Helena Lima"), you MUST first search for the deputy using search_deputy, extract the deputy ID, and then call this tool with that deputyId. Also preserve year filters from previous context (if previous question mentioned 2025, use year=2025 here too). Supports filtering by year, month, day, legislatura, or date range.',
   inputSchema: z.object({
     deputyId: z
       .number()
       .optional()
-      .describe('Deputy ID (if not provided, returns for all deputies)'),
+      .describe('Deputy ID from database (use search_deputy first to get the ID if you only have the deputy name from previous conversation context). If not provided, returns for all deputies.'),
     year: z.number().optional().describe('Filter by year (e.g., 2024)'),
     month: z.number().optional().describe('Filter by month (1-12)'),
     day: z.number().optional().describe('Filter by day of month (1-31)'),

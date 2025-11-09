@@ -68,16 +68,16 @@ TOOLS:
 ${this.mcpService.getToolsDescription()}
 
 GUIA DE USO:
-1. search_deputy → Buscar deputado por nome
+1. search_deputy → Buscar deputado por nome (OBRIGATÓRIO antes de usar deputyId em outras tools quando nome vem de contexto anterior)
 2. get_deputies_by_party → Listar deputados de um partido (extrair partido do contexto se não especificado)
-3. get_deputy_expenses → Total de gastos de UM deputado
-4. get_deputy_monthly_expenses → Gastos mensais e média mensal de UM deputado
+3. get_deputy_expenses → Total de gastos de UM deputado (precisa deputyId - buscar com search_deputy se só tiver nome)
+4. get_deputy_monthly_expenses → Gastos mensais e média mensal de UM deputado (precisa deputyId - buscar com search_deputy se só tiver nome)
 5. get_top_deputies → Rankings (orderBy: "desc"=mais, "asc"=menos). Suporta expenseType, state, year
 6. get_top_parties → Rankings de partidos (orderBy: "desc"/"asc")
 7. get_top_states → Rankings de estados (orderBy: "desc"/"asc")
 8. get_expense_types → Ranking OU total de tipo específico (com expenseType retorna total)
-9. get_top_suppliers → Fornecedores (sem deputyId=geral, com deputyId=específico)
-10. compare_deputies → Comparar 2+ deputados
+9. get_top_suppliers → Fornecedores (sem deputyId=geral, com deputyId=específico). SE usuário menciona deputado de conversa anterior: primeiro search_deputy, depois usar o ID aqui
+10. compare_deputies → Comparar 2+ deputados (precisa deputyId - buscar com search_deputy se só tiver nome)
 11. compare_parties → Gastos de partido(s). Use para "gastos do PT", "gastos com X do partido Y", comparar 2+ partidos. Suporta expenseType
 12. compare_states → Comparar 2+ estados
 13. get_statistics → AVG/SUM/MIN/MAX (groupBy: "party"/"state"/"none", orderBy: "avg_asc"/"avg_desc"/"total_asc"/"total_desc", minDeputies para filtrar grupos pequenos)
@@ -92,6 +92,12 @@ REGRAS CRÍTICAS:
 - Médias: SEMPRE use get_statistics (NUNCA calcule de top 10). "menor/maior média" → minDeputies=3
 - Contexto: "deputados do partido?" → extrair partido da conversa anterior
 - Fornecedores sem deputado específico → SEM deputyId
+- CONTEXTO DE DEPUTADOS: Quando o usuário menciona um deputado de uma resposta anterior (ex: "Qual os principais fornecedores de Helena Lima?" após ranking), você DEVE:
+  1. Primeiro buscar o deputado usando search_deputy com o nome EXATO mencionado na resposta anterior (ex: "Helena Lima")
+  2. Se encontrar múltiplos, usar o primeiro resultado (geralmente é o correto)
+  3. Extrair o ID do deputado (campo "id" do resultado)
+  4. Usar esse ID em get_top_suppliers com deputyId e year=2025 (se a pergunta anterior mencionou 2025)
+  5. NUNCA assumir que não há dados sem buscar primeiro o deputado corretamente
 
 FORMATAÇÃO:
 - Português brasileiro

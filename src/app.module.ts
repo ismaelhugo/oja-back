@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { DeputadoModule } from './deputado/deputado.module';
 import { DespesaModule } from './despesa/despesa.module';
 import { AiModule } from './ai/ai.module';
+import { EstatisticasModule } from './estatisticas/estatisticas.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 @Module({
-    imports: [
+  imports: [
     ConfigModule.forRoot({ isGlobal: true }),
 
     TypeOrmModule.forRoot({
@@ -21,9 +22,9 @@ import { ConfigModule } from '@nestjs/config';
     DeputadoModule,
     DespesaModule,
     AiModule,
+    EstatisticasModule,
   ],
   controllers: [],
   providers: [],
 })
 export class AppModule {}
- 
