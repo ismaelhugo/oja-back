@@ -17,6 +17,7 @@ export class DeputyExpensesStatsDto {
   deputadoId: number;
   periodo: {
     ano?: number;
+    mes?: number;
     startDate?: string;
     endDate?: string;
   };
@@ -24,6 +25,28 @@ export class DeputyExpensesStatsDto {
   totalDespesas: number;
   gastosPorMes: GastoPorMesDto[];
   gastosPorCategoria: GastoPorCategoriaDto[];
+}
+
+export class StateCategoryAverageDto {
+  tipo: string;
+  media: number;
+  total: number;
+  deputadosComDespesa: number;
+}
+
+export class StateAverageExpensesDto {
+  estado: string;
+  periodo: {
+    ano?: number;
+    mes?: number;
+    startDate?: string;
+    endDate?: string;
+  };
+  totalGastos: number;
+  mediaGeral: number;
+  totalDeputadosConsiderados: number;
+  totalDeputadosEstado: number;
+  mediaPorCategoria: StateCategoryAverageDto[];
 }
 
 export class TopFornecedorDto {

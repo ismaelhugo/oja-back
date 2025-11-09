@@ -5,6 +5,7 @@ import {
   GastoPorCategoriaDto,
   DeputyExpensesStatsDto,
   TopFornecedorDto,
+  StateAverageExpensesDto,
 } from './dtos/expense-stats.dto';
 
 @Controller('estatisticas')
@@ -19,12 +20,14 @@ export class EstatisticasController {
   async getDeputyExpensesByMonth(
     @Param('id') id: number,
     @Query('year') year?: number,
+    @Query('month') month?: number,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<GastoPorMesDto[]> {
     return this.estatisticasService.getDeputyExpensesByMonth(
       id,
       year,
+      month,
       startDate,
       endDate,
     );
@@ -38,12 +41,14 @@ export class EstatisticasController {
   async getDeputyExpensesByCategory(
     @Param('id') id: number,
     @Query('year') year?: number,
+    @Query('month') month?: number,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<GastoPorCategoriaDto[]> {
     return this.estatisticasService.getDeputyExpensesByCategory(
       id,
       year,
+      month,
       startDate,
       endDate,
     );
@@ -57,12 +62,14 @@ export class EstatisticasController {
   async getDeputyExpensesStats(
     @Param('id') id: number,
     @Query('year') year?: number,
+    @Query('month') month?: number,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<DeputyExpensesStatsDto> {
     return this.estatisticasService.getDeputyExpensesStats(
       id,
       year,
+      month,
       startDate,
       endDate,
     );
@@ -77,6 +84,7 @@ export class EstatisticasController {
     @Param('id') id: number,
     @Query('limit') limit?: number,
     @Query('year') year?: number,
+    @Query('month') month?: number,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<TopFornecedorDto[]> {
@@ -84,6 +92,28 @@ export class EstatisticasController {
       id,
       limit || 10,
       year,
+      month,
+      startDate,
+      endDate,
+    );
+  }
+
+  /**
+   * GET /estatisticas/estado/:uf/media-gastos
+   * Retorna média de gastos do estado (UF) com filtros opcionais
+   */
+  @Get('estado/:uf/media-gastos')
+  async getStateAverageExpenses(
+    @Param('uf') uf: string,
+    @Query('year') year?: number,
+    @Query('month') month?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<StateAverageExpensesDto> {
+    return this.estatisticasService.getStateAverageExpenses(
+      uf,
+      year,
+      month,
       startDate,
       endDate,
     );
