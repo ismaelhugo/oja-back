@@ -6,6 +6,7 @@ import {
   DeputyExpensesStatsDto,
   TopFornecedorDto,
   StateAverageExpensesDto,
+  DeputadoRankingDto,
 } from './dtos/expense-stats.dto';
 
 @Controller('estatisticas')
@@ -112,6 +113,79 @@ export class EstatisticasController {
   ): Promise<StateAverageExpensesDto> {
     return this.estatisticasService.getStateAverageExpenses(
       uf,
+      year,
+      month,
+      startDate,
+      endDate,
+    );
+  }
+
+  /**
+   * GET /estatisticas/ranking-deputados
+   * Retorna ranking dos top 10 deputados que mais gastaram
+   * Pode filtrar por estado (ou "GERAL" para todos os estados)
+   */
+  @Get('ranking-deputados')
+  async getTopDeputadosByState(
+    @Query('estado') estado?: string,
+    @Query('limit') limit?: number,
+    @Query('year') year?: number,
+    @Query('month') month?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<DeputadoRankingDto[]> {
+    return this.estatisticasService.getTopDeputadosByState(
+      estado,
+      limit || 10,
+      year,
+      month,
+      startDate,
+      endDate,
+    );
+  }
+
+  /**
+   * GET /estatisticas/estados
+   * Retorna lista de estados únicos disponíveis
+   */
+  @Get('estados')
+  async getEstadosDisponiveis(): Promise<string[]> {
+    return this.estatisticasService.getEstadosDisponiveis();
+  }
+
+  /**
+   * GET /estatisticas/total-geral
+   * Retorna o total geral de gastos da CEAP (todos os deputados)
+   */
+  @Get('total-geral')
+  async getTotalGeralGastos(
+    @Query('year') year?: number,
+    @Query('month') month?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<{ totalGastos: number; totalDespesas: number; totalDeputados: number }> {
+    return this.estatisticasService.getTotalGeralGastos(
+      year,
+      month,
+      startDate,
+      endDate,
+    );
+  }
+
+  /**
+   * GET /estatisticas/ranking-fornecedores
+   * Retorna ranking dos top fornecedores gerais (todos os deputados)
+   */
+  @Get('ranking-fornecedores')
+  async getTopFornecedoresGerais(
+    @Query('limit') limit?: number,
+    @Query('year') year?: number,
+    @Query('month') month?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<TopFornecedorDto[]> {
+    return this.estatisticasService.getTopFornecedoresGerais(
+      limit || 10,
       year,
       month,
       startDate,

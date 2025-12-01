@@ -7,6 +7,7 @@ import {
   DeputyExpensesStatsDto,
   StateAverageExpensesDto,
   TopFornecedorDto,
+  DeputadoRankingDto,
 } from './dtos/expense-stats.dto';
 
 @Injectable()
@@ -378,6 +379,271 @@ export class EstatisticasService {
         deputadosComDespesa: Number(row.deputados) || 0,
       })),
     };
+  }
+
+  /**
+   * Retorna ranking dos top 10 deputados que mais gastaram por estado
+   * Se estado não for fornecido, retorna ranking geral
+   */
+  async getTopDeputadosByState(
+    estado?: string,
+    limit: number = 10,
+    year?: number,
+    month?: number,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<DeputadoRankingDto[]> {
+    // Primeiro, buscar os deputados do ranking
+    let query = `
+      SELECT 
+        d.id,
+        d.nome,
+        d."siglaPartido",
+        d."siglaUf",
+        d."urlFoto",
+        SUM(de."valorLiquido") as total_gastos,
+        COUNT(*) as quantidade_despesas
+      FROM deputados d
+      JOIN despesas de ON d.id = de."deputadoId"
+      WHERE d."siglaPartido" != 'ABC'
+    `;
+
+    const queryParams: any[] = [];
+
+    if (estado && estado.toUpperCase() !== 'GERAL') {
+      query += ` AND d."siglaUf" = $${queryParams.length + 1}`;
+      queryParams.push(estado.toUpperCase());
+    }
+
+    if (year) {
+      query += ` AND de.ano = $${queryParams.length + 1}`;
+      queryParams.push(year);
+    }
+
+    if (month) {
+      query += ` AND de.mes = $${queryParams.length + 1}`;
+      queryParams.push(month);
+    }
+
+    if (startDate) {
+      query += ` AND de."dataDocumento"::date >= $${queryParams.length + 1}`;
+      queryParams.push(startDate);
+    }
+
+    if (endDate) {
+      query += ` AND de."dataDocumento"::date <= $${queryParams.length + 1}`;
+      queryParams.push(endDate);
+    }
+
+    query += `
+      GROUP BY d.id, d.nome, d."siglaPartido", d."siglaUf", d."urlFoto"
+      ORDER BY total_gastos DESC
+      LIMIT $${queryParams.length + 1}
+    `;
+    queryParams.push(limit);
+
+    const results = await this.dataSource.query(query, queryParams);
+
+    // Agora, para cada deputado, calcular a média do estado
+    const resultsWithMedia = await Promise.all(
+      results.map(async (row: any, index: number) => {
+        // Calcular média do estado usando o método existente
+        const stateAverage = await this.getStateAverageExpenses(
+          row.siglaUf,
+          year,
+          month,
+          startDate,
+          endDate,
+        );
+
+        return {
+          id: Number(row.id),
+          nome: row.nome,
+          siglaPartido: row.siglaPartido,
+          siglaUf: row.siglaUf,
+          urlFoto: row.urlFoto,
+          totalGastos: Number(row.total_gastos),
+          quantidadeDespesas: Number(row.quantidade_despesas),
+          posicao: index + 1,
+          mediaEstado: stateAverage.mediaGeral || 0,
+        };
+      }),
+    );
+
+    return resultsWithMedia;
+  }
+
+  /**
+   * Retorna o total geral de gastos da CEAP (todos os deputados)
+   */
+  async getTotalGeralGastos(
+    year?: number,
+    month?: number,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<{ totalGastos: number; totalDespesas: number; totalDeputados: number }> {
+    let query = `
+      SELECT 
+        COALESCE(SUM(de."valorLiquido"), 0) as total_gastos,
+        COUNT(*) as total_despesas,
+        COUNT(DISTINCT de."deputadoId") as total_deputados
+      FROM despesas de
+      JOIN deputados d ON d.id = de."deputadoId"
+      WHERE d."siglaPartido" != 'ABC'
+    `;
+
+    const queryParams: any[] = [];
+
+    if (year) {
+      query += ` AND de.ano = $${queryParams.length + 1}`;
+      queryParams.push(year);
+    }
+
+    if (month) {
+      query += ` AND de.mes = $${queryParams.length + 1}`;
+      queryParams.push(month);
+    }
+
+    if (startDate) {
+      query += ` AND de."dataDocumento"::date >= $${queryParams.length + 1}`;
+      queryParams.push(startDate);
+    }
+
+    if (endDate) {
+      query += ` AND de."dataDocumento"::date <= $${queryParams.length + 1}`;
+      queryParams.push(endDate);
+    }
+
+    const results = await this.dataSource.query(query, queryParams);
+    const row = results[0];
+
+    return {
+      totalGastos: Number(row?.total_gastos || 0),
+      totalDespesas: Number(row?.total_despesas || 0),
+      totalDeputados: Number(row?.total_deputados || 0),
+    };
+  }
+
+  /**
+   * Retorna ranking dos top fornecedores gerais (todos os deputados)
+   * Agrupa por CNPJ quando disponível, ou normaliza o nome quando não houver CNPJ
+   */
+  async getTopFornecedoresGerais(
+    limit: number = 10,
+    year?: number,
+    month?: number,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<TopFornecedorDto[]> {
+    // Query que agrupa por CNPJ quando disponível, ou por nome normalizado quando não houver CNPJ
+    let query = `
+      WITH fornecedores_agrupados AS (
+        SELECT 
+          CASE 
+            WHEN de."cnpjCpfFornecedor" IS NOT NULL AND de."cnpjCpfFornecedor" != '' 
+            THEN de."cnpjCpfFornecedor"
+            ELSE UPPER(TRIM(de."nomeFornecedor"))
+          END as chave_agrupamento,
+          MAX(de."nomeFornecedor") as "nomeFornecedor",
+          MAX(de."cnpjCpfFornecedor") as "cnpjCpfFornecedor",
+          SUM(de."valorLiquido") as total,
+          COUNT(*) as quantidade
+        FROM despesas de
+        JOIN deputados d ON d.id = de."deputadoId"
+        WHERE d."siglaPartido" != 'ABC'
+    `;
+
+    const queryParams: any[] = [];
+
+    if (year) {
+      query += ` AND de.ano = $${queryParams.length + 1}`;
+      queryParams.push(year);
+    }
+
+    if (month) {
+      query += ` AND de.mes = $${queryParams.length + 1}`;
+      queryParams.push(month);
+    }
+
+    if (startDate) {
+      query += ` AND de."dataDocumento"::date >= $${queryParams.length + 1}`;
+      queryParams.push(startDate);
+    }
+
+    if (endDate) {
+      query += ` AND de."dataDocumento"::date <= $${queryParams.length + 1}`;
+      queryParams.push(endDate);
+    }
+
+    query += `
+        GROUP BY chave_agrupamento
+      )
+      SELECT 
+        "nomeFornecedor",
+        "cnpjCpfFornecedor",
+        total,
+        quantidade
+      FROM fornecedores_agrupados
+      ORDER BY total DESC
+      LIMIT $${queryParams.length + 1}
+    `;
+    queryParams.push(limit);
+
+    const results = await this.dataSource.query(query, queryParams);
+
+    // Calcular total geral para percentuais
+    let totalQuery = `
+      SELECT SUM(de."valorLiquido") as total
+      FROM despesas de
+      JOIN deputados d ON d.id = de."deputadoId"
+      WHERE d."siglaPartido" != 'ABC'
+    `;
+    const totalParams: any[] = [];
+
+    if (year) {
+      totalQuery += ` AND de.ano = $${totalParams.length + 1}`;
+      totalParams.push(year);
+    }
+
+    if (month) {
+      totalQuery += ` AND de.mes = $${totalParams.length + 1}`;
+      totalParams.push(month);
+    }
+
+    if (startDate) {
+      totalQuery += ` AND de."dataDocumento"::date >= $${totalParams.length + 1}`;
+      totalParams.push(startDate);
+    }
+
+    if (endDate) {
+      totalQuery += ` AND de."dataDocumento"::date <= $${totalParams.length + 1}`;
+      totalParams.push(endDate);
+    }
+
+    const totalResult = await this.dataSource.query(totalQuery, totalParams);
+    const totalGeral = Number(totalResult[0]?.total || 0);
+
+    return results.map((row: any) => ({
+      nomeFornecedor: row.nomeFornecedor || '',
+      cnpjCpfFornecedor: row.cnpjCpfFornecedor || null,
+      total: Number(row.total),
+      quantidade: Number(row.quantidade),
+      percentual: totalGeral > 0 ? (Number(row.total) / totalGeral) * 100 : 0,
+    }));
+  }
+
+  /**
+   * Retorna lista de estados únicos disponíveis
+   */
+  async getEstadosDisponiveis(): Promise<string[]> {
+    const results = await this.dataSource.query(`
+      SELECT DISTINCT d."siglaUf" as uf
+      FROM deputados d
+      WHERE d."siglaPartido" != 'ABC'
+      ORDER BY d."siglaUf" ASC
+    `);
+
+    return results.map((row: any) => row.uf);
   }
 
   private buildStateFilters(

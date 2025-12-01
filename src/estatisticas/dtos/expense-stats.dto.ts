@@ -56,3 +56,15 @@ export class TopFornecedorDto {
   quantidade: number;
   percentual: number; // Percentual do total de gastos do deputado
 }
+
+export class DeputadoRankingDto {
+  id: number;
+  nome: string;
+  siglaPartido: string;
+  siglaUf: string;
+  urlFoto: string;
+  totalGastos: number;
+  quantidadeDespesas: number;
+  posicao: number;
+  mediaEstado: number;
+}
