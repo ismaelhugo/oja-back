@@ -192,4 +192,13 @@ export class EstatisticasController {
       endDate,
     );
   }
+
+  /**
+   * GET /estatisticas/ultima-atualizacao
+   * Retorna a data da última atualização do banco de dados
+   */
+  @Get('ultima-atualizacao')
+  async getUltimaAtualizacao(): Promise<{ lastUpdate: string }> {
+    return this.estatisticasService.getLastUpdate();
+  }
 }

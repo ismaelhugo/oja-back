@@ -682,4 +682,19 @@ export class EstatisticasService {
 
     return { whereClause, params };
   }
+
+  /**
+   * Retorna a data da última atualização do banco de dados
+   * Baseado na última atualização da tabela de despesas
+   */
+  async getLastUpdate(): Promise<{ lastUpdate: string }> {
+    const query = `SELECT MAX("updatedAt") as "lastUpdate" FROM despesas`;
+
+    const result = await this.dataSource.query(query);
+    const lastUpdate = result[0]?.lastUpdate || new Date().toISOString();
+
+    return {
+      lastUpdate: new Date(lastUpdate).toISOString(),
+    };
+  }
 }
