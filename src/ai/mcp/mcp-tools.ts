@@ -79,6 +79,178 @@ function getSemanticSearchTerms(userTerm: string): string[] {
     DIVULGAÇÃO: ['DIVULGACAO', 'PARLAMENTAR', 'ATIVIDADE'],
     'DIVULGACAO PARLAMENTAR': ['DIVULGACAO', 'PARLAMENTAR', 'ATIVIDADE'],
     'DIVULGAÇÃO PARLAMENTAR': ['DIVULGACAO', 'PARLAMENTAR', 'ATIVIDADE'],
+    // Transporte (agrupamento genérico - cobre todas as categorias de locomoção)
+    TRANSPORTE: [
+      'PASSAGEM',
+      'AEREA',
+      'AEREO',
+      'COMBUSTIVEL',
+      'LUBRIFICANTE',
+      'LOCACAO',
+      'FRETAMENTO',
+      'VEICULO',
+      'AUTOMOTOR',
+      'EMBARCACAO',
+      'TAXI',
+      'PEDAGIO',
+      'ESTACIONAMENTO',
+      'TERRESTRE',
+      'MARITIMA',
+      'FLUVIAL',
+    ],
+    TRANSPORTES: [
+      'PASSAGEM',
+      'AEREA',
+      'AEREO',
+      'COMBUSTIVEL',
+      'LUBRIFICANTE',
+      'LOCACAO',
+      'FRETAMENTO',
+      'VEICULO',
+      'AUTOMOTOR',
+      'EMBARCACAO',
+      'TAXI',
+      'PEDAGIO',
+      'ESTACIONAMENTO',
+      'TERRESTRE',
+      'MARITIMA',
+      'FLUVIAL',
+    ],
+    LOCOMOCAO: [
+      'PASSAGEM',
+      'AEREA',
+      'AEREO',
+      'COMBUSTIVEL',
+      'LUBRIFICANTE',
+      'LOCACAO',
+      'FRETAMENTO',
+      'VEICULO',
+      'AUTOMOTOR',
+      'EMBARCACAO',
+      'TAXI',
+      'PEDAGIO',
+      'ESTACIONAMENTO',
+      'TERRESTRE',
+      'MARITIMA',
+      'FLUVIAL',
+    ],
+    LOCOMOÇÃO: [
+      'PASSAGEM',
+      'AEREA',
+      'AEREO',
+      'COMBUSTIVEL',
+      'LUBRIFICANTE',
+      'LOCACAO',
+      'FRETAMENTO',
+      'VEICULO',
+      'AUTOMOTOR',
+      'EMBARCACAO',
+      'TAXI',
+      'PEDAGIO',
+      'ESTACIONAMENTO',
+      'TERRESTRE',
+      'MARITIMA',
+      'FLUVIAL',
+    ],
+    // Comunicação (agrupamento genérico)
+    COMUNICACAO: ['TELEFON', 'CELULAR', 'POSTAL', 'INTERNET', 'COMUNICACAO'],
+    COMUNICAÇÃO: ['TELEFON', 'CELULAR', 'POSTAL', 'INTERNET', 'COMUNICACAO'],
+    // Moradia / Manutenção de escritório (agrupamento genérico)
+    MORADIA: [
+      'MANUTENCAO',
+      'ESCRITORIO',
+      'LOCACAO',
+      'IMOVEL',
+      'ENERGIA',
+      'AGUA',
+      'ALUGUEL',
+    ],
+    ESCRITORIO: [
+      'MANUTENCAO',
+      'ESCRITORIO',
+      'LOCACAO',
+      'IMOVEL',
+      'ENERGIA',
+      'AGUA',
+      'ALUGUEL',
+    ],
+    ESCRITÓRIO: [
+      'MANUTENCAO',
+      'ESCRITORIO',
+      'LOCACAO',
+      'IMOVEL',
+      'ENERGIA',
+      'AGUA',
+      'ALUGUEL',
+    ],
+    // Segurança
+    SEGURANCA: ['SEGURANCA', 'SEGURIDADE'],
+    SEGURANÇA: ['SEGURANCA', 'SEGURIDADE'],
+    // Educação / Cursos (agrupamento genérico)
+    EDUCACAO: [
+      'CURSO',
+      'CONGRESSO',
+      'EVENTO',
+      'CAPACITACAO',
+      'ESPECIALIZACAO',
+      'PARTICIPACAO',
+    ],
+    EDUCAÇÃO: [
+      'CURSO',
+      'CONGRESSO',
+      'EVENTO',
+      'CAPACITACAO',
+      'ESPECIALIZACAO',
+      'PARTICIPACAO',
+    ],
+    CURSO: [
+      'CURSO',
+      'CONGRESSO',
+      'EVENTO',
+      'CAPACITACAO',
+      'ESPECIALIZACAO',
+      'PARTICIPACAO',
+    ],
+    CURSOS: [
+      'CURSO',
+      'CONGRESSO',
+      'EVENTO',
+      'CAPACITACAO',
+      'ESPECIALIZACAO',
+      'PARTICIPACAO',
+    ],
+    CAPACITACAO: [
+      'CURSO',
+      'CONGRESSO',
+      'EVENTO',
+      'CAPACITACAO',
+      'ESPECIALIZACAO',
+      'PARTICIPACAO',
+    ],
+    CAPACITAÇÃO: [
+      'CURSO',
+      'CONGRESSO',
+      'EVENTO',
+      'CAPACITACAO',
+      'ESPECIALIZACAO',
+      'PARTICIPACAO',
+    ],
+    CONGRESSOS: [
+      'CURSO',
+      'CONGRESSO',
+      'EVENTO',
+      'CAPACITACAO',
+      'ESPECIALIZACAO',
+      'PARTICIPACAO',
+    ],
+    EVENTOS: [
+      'CURSO',
+      'CONGRESSO',
+      'EVENTO',
+      'CAPACITACAO',
+      'ESPECIALIZACAO',
+      'PARTICIPACAO',
+    ],
   };
 
   // Verifica se há um mapeamento direto
@@ -143,6 +315,62 @@ function getSemanticSearchTerms(userTerm: string): string[] {
       pattern: ['PASSAGEM', 'AEREA', 'AVIAO'],
       keywords: ['PASSAGEM', 'AEREA', 'AEREO', 'AVIAO'],
     },
+    // Heurísticas expandidas para transporte
+    {
+      pattern: ['AVIAO', 'VOO', 'VOOS', 'AERONAVE', 'AEROPORTO'],
+      keywords: ['PASSAGEM', 'AEREA', 'AEREO', 'AVIAO', 'AERONAVE'],
+    },
+    {
+      pattern: ['ONIBUS', 'TREM', 'METRO', 'METRÔ', 'TERRESTRE'],
+      keywords: ['PASSAGEM', 'TERRESTRE', 'MARITIMA', 'FLUVIAL'],
+    },
+    {
+      pattern: ['BARCO', 'NAVIO', 'EMBARCACAO', 'MARITIMO', 'FLUVIAL'],
+      keywords: ['PASSAGEM', 'EMBARCACAO', 'MARITIMA', 'FLUVIAL', 'FRETAMENTO'],
+    },
+    {
+      pattern: ['TAXI', 'UBER', 'APLICATIVO', 'PEDAGIO', 'ESTACIONAMENTO'],
+      keywords: ['TAXI', 'PEDAGIO', 'ESTACIONAMENTO'],
+    },
+    // Heurísticas para comunicação
+    {
+      pattern: ['INTERNET', 'POSTAL', 'CORRESPONDENCIA', 'EMAIL'],
+      keywords: ['TELEFON', 'CELULAR', 'POSTAL', 'INTERNET'],
+    },
+    // Heurísticas para escritório/moradia
+    {
+      pattern: ['IMOVEL', 'ALUGUEL', 'LOCACAO', 'AGUA', 'ENERGIA', 'LUZ'],
+      keywords: [
+        'MANUTENCAO',
+        'ESCRITORIO',
+        'LOCACAO',
+        'IMOVEL',
+        'ENERGIA',
+        'AGUA',
+      ],
+    },
+    // Heurísticas para segurança
+    {
+      pattern: ['SEGURO', 'SEGURANCA', 'VIGILANCIA', 'GUARDA'],
+      keywords: ['SEGURANCA', 'SEGURIDADE'],
+    },
+    // Heurísticas para educação
+    {
+      pattern: [
+        'CONGRESSO',
+        'SEMINARIO',
+        'PALESTRA',
+        'TREINAMENTO',
+        'CAPACITACAO',
+      ],
+      keywords: [
+        'CURSO',
+        'CONGRESSO',
+        'EVENTO',
+        'CAPACITACAO',
+        'ESPECIALIZACAO',
+      ],
+    },
   ];
 
   for (const { pattern, keywords } of heuristics) {
@@ -161,13 +389,17 @@ function getSemanticSearchTerms(userTerm: string): string[] {
 export const searchDeputyTool: MCPTool = {
   name: 'search_deputy',
   description:
-    'Search for deputies by name (partial, case-insensitive). Returns deputy information including ID, name, party, and state. USE THIS when user mentions a deputy name from a previous conversation (e.g., "fornecedores de Helena Lima" after a ranking question). Extract the exact name from the previous response and search for it. Returns up to 10 results - use the first one if multiple matches are found.',
+    'Search for deputies by name (partial, case-insensitive, accent-tolerant and typo-tolerant). Returns deputy information including ID, name, party, and state. USE THIS when user mentions a deputy name from a previous conversation (e.g., "fornecedores de Helena Lima" after a ranking question). Extract the exact name from the previous response and search for it. Returns up to 10 results ordered by name similarity - use the first one if multiple matches are found.',
   inputSchema: z.object({
     name: z.string().describe('Deputy name or partial name to search for'),
   }),
   handler: async (params, dataSource) => {
     const { name } = params;
 
+    // Combines two strategies:
+    // 1. immutable_unaccent + ILIKE for accent-insensitive substring match ("Rosario" finds "Rosário")
+    // 2. pg_trgm similarity for fuzzy match ("Melo" finds "Mello", min threshold 0.2)
+    // immutable_unaccent wraps unaccent() with IMMUTABLE marking so it can be used in indexes.
     const query = `
       SELECT 
         id, 
@@ -176,13 +408,17 @@ export const searchDeputyTool: MCPTool = {
         "siglaPartido", 
         "siglaUf", 
         email, 
-        "urlFoto"
+        "urlFoto",
+        similarity(immutable_unaccent(lower(nome)), immutable_unaccent(lower($1))) as _sim
       FROM deputados 
-      WHERE nome ILIKE $1
+      WHERE immutable_unaccent(nome) ILIKE immutable_unaccent($2)
+         OR similarity(immutable_unaccent(lower(nome)), immutable_unaccent(lower($1))) > 0.2
+      ORDER BY _sim DESC
       LIMIT 10
     `;
 
-    return await dataSource.query(query, [`%${name}%`]);
+    const rows = await dataSource.query(query, [name, `%${name}%`]);
+    return rows.map(({ _sim, ...rest }) => rest);
   },
 };
 
@@ -1873,6 +2109,153 @@ export const getCotaParlamentarInfoTool: MCPTool = {
 };
 
 /**
+ * Tool 13B: List Expense Categories
+ */
+export const listExpenseCategoryTool: MCPTool = {
+  name: 'list_expense_categories',
+  description:
+    'List all distinct expense categories (tipoDespesa) available in the database, with total amount and count per category. Use this when: (1) user asks "quais são as categorias de gasto?", "que tipos de despesa existem?"; (2) a previous tool returned empty results for an expenseType and you need to show the user available categories; (3) user uses an ambiguous term that does not match a known category. Supports optional filters by deputyId, party, state, year, month, startDate, endDate.',
+  inputSchema: z.object({
+    deputyId: z
+      .number()
+      .optional()
+      .describe('Optional: filter categories by a specific deputy ID'),
+    party: z
+      .string()
+      .optional()
+      .describe(
+        'Optional: filter by party acronym (e.g., PT, PL). Requires JOIN with deputados.',
+      ),
+    state: z
+      .string()
+      .optional()
+      .describe(
+        'Optional: filter by state acronym (e.g., SP, RJ). Requires JOIN with deputados.',
+      ),
+    year: z.number().optional().describe('Filter by year (e.g., 2025)'),
+    month: z.number().optional().describe('Filter by month (1-12)'),
+    startDate: z
+      .string()
+      .optional()
+      .describe('Optional: start date (YYYY-MM-DD)'),
+    endDate: z.string().optional().describe('Optional: end date (YYYY-MM-DD)'),
+  }),
+  handler: async (params, dataSource) => {
+    const { deputyId, party, state, year, month, startDate, endDate } = params;
+
+    const needsJoin = party || state;
+
+    let query: string;
+    const queryParams: any[] = [];
+    const whereConditions: string[] = [];
+
+    if (needsJoin) {
+      query = `
+        SELECT 
+          de."tipoDespesa",
+          SUM(de."valorLiquido") as total,
+          COUNT(*) as count
+        FROM despesas de
+        JOIN deputados d ON de."deputadoId" = d.id
+      `;
+    } else {
+      query = `
+        SELECT 
+          de."tipoDespesa",
+          SUM(de."valorLiquido") as total,
+          COUNT(*) as count
+        FROM despesas de
+      `;
+    }
+
+    if (deputyId) {
+      whereConditions.push(`de."deputadoId" = $${queryParams.length + 1}`);
+      queryParams.push(deputyId);
+    }
+
+    if (party) {
+      whereConditions.push(`d."siglaPartido" = $${queryParams.length + 1}`);
+      queryParams.push(normalizePartyName(party));
+    }
+
+    if (state) {
+      whereConditions.push(`d."siglaUf" = $${queryParams.length + 1}`);
+      queryParams.push(state.toUpperCase());
+    }
+
+    if (year) {
+      whereConditions.push(`de.ano = $${queryParams.length + 1}`);
+      queryParams.push(year);
+    }
+
+    if (month) {
+      whereConditions.push(`de.mes = $${queryParams.length + 1}`);
+      queryParams.push(month);
+    }
+
+    if (startDate) {
+      whereConditions.push(
+        `de."dataDocumento"::date >= $${queryParams.length + 1}`,
+      );
+      queryParams.push(startDate);
+    }
+
+    if (endDate) {
+      whereConditions.push(
+        `de."dataDocumento"::date <= $${queryParams.length + 1}`,
+      );
+      queryParams.push(endDate);
+    }
+
+    if (whereConditions.length > 0) {
+      query += ` WHERE ${whereConditions.join(' AND ')}`;
+    }
+
+    query += `
+      GROUP BY de."tipoDespesa"
+      ORDER BY total DESC
+    `;
+
+    return await dataSource.query(query, queryParams);
+  },
+};
+
+/**
+ * Tool 14B: Get Deputy Profile Info
+ */
+export const getDeputyInfoTool: MCPTool = {
+  name: 'get_deputy_info',
+  description:
+    'Get profile information about a specific deputy (not expenses). Use this for questions about WHO a deputy is: their party, state, email, photo, legislative term. Use AFTER search_deputy to get the deputyId. Do NOT use for expense/spending questions - use get_deputy_expenses instead. Examples: "quem é o deputado X?", "qual o partido de Y?", "qual o estado de Z?", "me dê informações sobre o deputado W".',
+  inputSchema: z.object({
+    deputyId: z
+      .number()
+      .describe('Deputy ID (use search_deputy first to get it from the name)'),
+  }),
+  handler: async (params, dataSource) => {
+    const { deputyId } = params;
+
+    const query = `
+      SELECT 
+        id,
+        id_local as "idLocal",
+        nome,
+        "siglaPartido",
+        "siglaUf",
+        email,
+        "urlFoto",
+        "idLegislatura"
+      FROM deputados
+      WHERE id = $1
+      LIMIT 1
+    `;
+
+    const results = await dataSource.query(query, [deputyId]);
+    return results.length > 0 ? results[0] : null;
+  },
+};
+
+/**
  * All available MCP tools
  */
 export const mcpTools: MCPTool[] = [
@@ -1890,4 +2273,6 @@ export const mcpTools: MCPTool[] = [
   getTopStatesTool,
   getStatisticsTool,
   getCotaParlamentarInfoTool,
+  listExpenseCategoryTool,
+  getDeputyInfoTool,
 ];

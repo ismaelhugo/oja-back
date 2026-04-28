@@ -118,10 +118,9 @@ export class DespesaService {
     const despesasApi = await this.despesaImportService.importarDespesasDeputado(deputadoId, ano, mes);
     this.logger.log(`Salvando ${despesasApi.length} despesas do deputado ${deputadoId}...`);
     
-    const despesasParaSalvar = despesasApi.map(despesaApi => ({
-      deputadoId,
-      ...despesaApi
-    }));
+    const despesasParaSalvar = despesasApi.map(despesaApi =>
+      this.normalizarDespesaImportacao(deputadoId, despesaApi),
+    );
 
     return this.salvarDespesasComUpsert(despesasParaSalvar);
   }
@@ -136,10 +135,9 @@ export class DespesaService {
     
     for (const item of resultadoImportacao) {
       if (item.despesas.length > 0) {
-        const despesasParaSalvar = item.despesas.map(despesaApi => ({
-          deputadoId: item.deputadoId,
-          ...despesaApi
-        }));
+        const despesasParaSalvar = item.despesas.map(despesaApi =>
+          this.normalizarDespesaImportacao(item.deputadoId, despesaApi),
+        );
 
         const despesasSalvas = await this.salvarDespesasComUpsert(despesasParaSalvar);
         resultado.push({
@@ -346,6 +344,16 @@ export class DespesaService {
     this.logger.log(`Removendo despesas do deputado ${deputadoId}...`);
     await this.despesaRepository.delete({ deputadoId });
     this.logger.log(`Despesas do deputado ${deputadoId} foram removidas`);
+  }
+
+  /** Alinha tipos da API (codDocumento numérico ou UUID, etc.) com colunas texto no banco. */
+  private normalizarDespesaImportacao(deputadoId: number, despesaApi: DespesaDto): Record<string, unknown> {
+    return {
+      ...despesaApi,
+      deputadoId,
+      codDocumento: String(despesaApi.codDocumento ?? ''),
+      numDocumento: String(despesaApi.numDocumento ?? ''),
+    };
   }
 
   // Método privado para salvar com upsert OTIMIZADO

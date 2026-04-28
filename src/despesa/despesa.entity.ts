@@ -18,8 +18,9 @@ export class Despesa {
   @Column({ nullable: true })
   cnpjCpfFornecedor: string;
 
-  @Column()
-  codDocumento: number;
+  /** Pode ser número ou UUID conforme API da Câmara (despesas recentes). */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  codDocumento: string;
 
   @Column()
   codLote: number;
@@ -36,7 +37,7 @@ export class Despesa {
   @Column()
   nomeFornecedor: string;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255, nullable: true })
   numDocumento: string;
 
   @Column({ nullable: true })

@@ -1,7 +1,8 @@
 export interface DespesaDto {
   ano: number;
   cnpjCpfFornecedor: string;
-  codDocumento: number;
+  /** Número ou identificador UUID, conforme retorno da API. */
+  codDocumento: string | number;
   codLote: number;
   codTipoDocumento: number;
   dataDocumento: string;
